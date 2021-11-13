@@ -1,0 +1,31 @@
+{% extends "base" %}
+  
+{% block content %}
+<p><!--Nothing to see here --></p>
+
+<h4>Register new user</h4>
+
+<form action="register" method="post">
+   
+     <div class="row">
+        <label for="name">Your username</label> 
+        <input type="text" name="name" id="name" value="" autofocus
+        class="u-full-width" />
+    </div>
+     <div class="row">
+        <label for="password">Your password</label> 
+        <input type="password" name="password" id="password" value="" autofocus
+        class="u-full-width" />
+    </div>
+    <div class="row">
+        <label for="email">Your email</label> 
+        <input type="email" placeholder="test@gmail.com"
+        name="email" id="email" value="" autofocus
+        class="u-full-width" />
+    </div>
+    <div class="row">
+        <input type="submit" value="register">
+    </div>
+</form>
+
+{% endblock content %}

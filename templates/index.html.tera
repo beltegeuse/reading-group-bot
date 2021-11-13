@@ -1,0 +1,58 @@
+{% extends "base" %}
+  
+{% block content %}
+    <p><!--Nothing to see here --></p>
+
+    {% if flash %}
+    <div class="row">
+        <div class="field-{{flash.0}}-msg">
+               {{ flash.1 }}
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="row">
+      <h4>Add a new paper our pile!</h4>
+      <form action="/paper" method="post">
+        <div class="row">
+          <input type="title" placeholder="Paper title..."
+            name="title" id="title" value="" autofocus
+            class="u-full-width" />
+        </div>
+        <div class="row">
+          <input type="url" placeholder="Paper URL..."
+            name="url" id="url" value="" autofocus class="u-full-width" />
+        </div>
+        <div class="row">
+          <input type="text" placeholder="Optional: Venue where paper was published/presented (e.g., SIGGRAPH 2021)"
+            name="venue" id="venue" value="" autofocus class="u-full-width" />
+        </div>
+        <div class="row">
+          <input type="submit" value="add paper">
+        </div>
+      </form>
+    </div>
+
+    <div class="row">
+    <h4>Current paper in our list</h4>
+    </div>
+    <div class="row">
+      <div class="twelve columns">
+        <ul>
+        {% for paper in papers %}
+            <li>
+              <span>{{ paper.id }} -- {{ paper.title }}</span>
+              <!--<form class="inline" action="/todo/{{paper.id}}" method="post">
+                <input type="hidden" name="_method" value="put" />
+                <button class="small" type="submit">undo</button>
+              </form>
+              <form class="inline" action="/todo/{{paper.id}}" method="post">
+                <input type="hidden" name="_method" value="delete" />
+                <button class="primary small" type="submit">delete</button>
+              </form>
+            </li>-->
+        {% endfor %}
+        </ul>
+      </div>
+    </div>
+{% endblock content %}

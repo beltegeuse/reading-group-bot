@@ -1,0 +1,9 @@
+[debug]
+address = "127.0.0.1"
+port = 3000
+workers = 2
+log = "debug"
+limits = { forms = 32768 }
+
+[default.databases.sqlite_database]
+url = "db.sqlite"

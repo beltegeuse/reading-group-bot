@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Paper reading list</title>
+  <meta name="description" content="paper reading group up-vote written in Rocket.">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link href="//fonts.googleapis.com/css?family=Raleway:400,300,600" rel="stylesheet" type="text/css">
+  <link rel="stylesheet" href="/css/normalize.css">
+  <link rel="stylesheet" href="/css/skeleton.css">
+  <link rel="stylesheet" href="/css/gh.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <nav class="nav-show">
+        <div class="container">
+            <ul>
+                <li><a href="/">Reading group</a></li>
+                <li>
+                    <a href="#decks">Papers</a>
+                    <ul>
+                        <li><a href="#">Decks to Beat</a></li>
+                        <li><a href="#">Community Decks</a></li>
+                    </ul>
+                </li>
+                <li class="u-pull-right"><a href="/user/login">Login</a></li>
+                <li class="right"><a href="/user/register">Register</a></li>
+                <li class="icon">
+                    <a href="javascript:void(0);" onclick="toggleMobileNav();">&#9776;</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        {% block content %}{% endblock content %}
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script src="/js/gh.js"></script>
+</body>
+</html>
