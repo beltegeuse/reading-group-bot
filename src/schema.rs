@@ -13,6 +13,7 @@ table! {
         title -> Text,
         url -> Text,
         venue -> Nullable<Text>,
+        user_id -> Integer,
     }
 }
 
@@ -24,6 +25,7 @@ table! {
     }
 }
 
+joinable!(papers -> logins (user_id));
 joinable!(votes -> logins (user_id));
 joinable!(votes -> papers (paper_id));
 

@@ -11,6 +11,7 @@
     </div>
     {% endif %}
     
+    {% if username %}
     <div class="row">
       <h4>Add a new paper our pile!</h4>
       <form action="/paper" method="post">
@@ -32,6 +33,11 @@
         </div>
       </form>
     </div>
+    {% else %}
+    <div class="row">
+      <h4>Need to login before proposing new papers</h4>
+    </div>
+    {% endif %}
 
     <div class="row">
     <h4>Current paper in our list</h4>
