@@ -14,6 +14,8 @@ table! {
         url -> Text,
         venue -> Nullable<Text>,
         user_id -> Integer,
+        vote_count -> Integer,
+        readed -> Integer,
     }
 }
 
@@ -29,8 +31,4 @@ joinable!(papers -> logins (user_id));
 joinable!(votes -> logins (user_id));
 joinable!(votes -> papers (paper_id));
 
-allow_tables_to_appear_in_same_query!(
-    logins,
-    papers,
-    votes,
-);
+allow_tables_to_appear_in_same_query!(logins, papers, votes,);

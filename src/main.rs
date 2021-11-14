@@ -7,6 +7,8 @@ extern crate diesel;
 #[macro_use]
 extern crate diesel_migrations;
 
+use std::collections::HashMap;
+
 // Use all modelss
 use model::*;
 
@@ -50,6 +52,8 @@ pub struct SlackResponse {
 }
 
 // Extract from cookie
+#[derive(Debug, Serialize)]
+#[serde(crate = "rocket::serde")]
 pub struct CookieInfo {
     id: i32,
     name: String,
@@ -71,8 +75,8 @@ fn read_cookie(jar: &CookieJar<'_>) -> Option<CookieInfo> {
 #[serde(crate = "rocket::serde")]
 struct Context {
     flash: Option<(String, String)>,
-    papers: Vec<Paper>,
-    username: Option<String>,
+    papers: Vec<(Paper, bool)>,
+    cookie_info: Option<CookieInfo>,
 }
 
 #[derive(Debug, Serialize)]
@@ -82,24 +86,35 @@ struct ContextNull {}
 // Forward flash message if we have one
 #[get("/")]
 async fn index(jar: &CookieJar<'_>, flash: Option<FlashMessage<'_>>, conn: DbConn) -> Template {
+    // Get context informations
     let cookie_info = read_cookie(jar);
     let flash = flash.map(FlashMessage::into_inner);
-    let context = match Paper::all(&conn).await {
-        Ok(papers) => Context {
+    let user_id = match &cookie_info {
+        None => None,
+        Some(i) => Some(i.id),
+    };
+
+    // Build context on paper unread
+    let context = match Paper::all_unread(&conn, user_id).await {
+        Some(papers) => Context {
             flash,
-            papers,
-            username: cookie_info.and_then(|c| Some(c.name)),
+            papers: dbg!(papers),
+            cookie_info,
         },
-        Err(e) => {
-            error_!("index() error: {}", e);
-            Context {
-                flash: Some(("error".into(), "Fail to access database.".into())),
-                papers: vec![],
-                username: cookie_info.and_then(|c| Some(c.name)),
-            }
-        }
+        None => Context {
+            flash: Some(("error".into(), "Fail to access database.".into())),
+            papers: vec![],
+            cookie_info,
+        },
     };
     Template::render("index", &context)
+}
+
+#[get("/add")]
+async fn paper_add(jar: &CookieJar<'_>) -> Template {
+    let cookie_info = read_cookie(jar);
+    let context =  HashMap::from([("cookie_info", cookie_info)]);
+    Template::render("paper", &context)
 }
 
 #[derive(Debug, FromForm)]
@@ -108,15 +123,22 @@ pub struct PaperForm {
     pub url: String,
     pub venue: String,
 }
-#[post("/", data = "<paper_form>")]
-async fn new(jar: &CookieJar<'_>, paper_form: Form<PaperForm>, conn: DbConn) -> Flash<Redirect> {
+#[post("/add", data = "<paper_form>")]
+async fn paper_add_post(
+    jar: &CookieJar<'_>,
+    paper_form: Form<PaperForm>,
+    conn: DbConn,
+) -> Flash<Redirect> {
     // Check login first
     let cookie_info = read_cookie(jar);
     if cookie_info.is_none() {
-        return Flash::error(Redirect::to("/"), "Impossible to add paper without login first");
+        return Flash::error(
+            Redirect::to("/"),
+            "Impossible to add paper without login first",
+        );
     }
     let cookie_info = cookie_info.unwrap();
-    
+
     // Check if the form is correct
     let paper = paper_form.into_inner();
     if paper.title.is_empty() {
@@ -146,7 +168,7 @@ async fn new(jar: &CookieJar<'_>, paper_form: Form<PaperForm>, conn: DbConn) -> 
         }
     }
 
-    if let Err(e) = Paper::insert(paper, &conn, cookie_info.id).await {
+    if let Err(e) = Paper::insert(&conn, paper, cookie_info.id).await {
         error_!("DB insertion error: {}", e);
         Flash::error(
             Redirect::to("/"),
@@ -155,6 +177,57 @@ async fn new(jar: &CookieJar<'_>, paper_form: Form<PaperForm>, conn: DbConn) -> 
     } else {
         Flash::success(Redirect::to("/"), "Paper successfully added.")
     }
+}
+
+#[put("/remove/<id>")]
+async fn paper_remove(jar: &CookieJar<'_>, conn: DbConn, id: i32) -> Flash<Redirect> {
+    let cookie_info = read_cookie(jar);
+    if cookie_info.is_none() {
+        return Flash::error(
+            Redirect::to("/"),
+            "Impossible to remove paper without login",
+        );
+    }
+    let cookie_info = cookie_info.unwrap();
+
+    match Paper::get(&conn, id).await {
+        Err(e) => {
+            error_!("remove paper: {}", e);
+            Flash::error(Redirect::to("/"), "Impossible to retrive paper")
+        }
+        Ok(paper) => {
+            if paper.user_id == cookie_info.id {
+                // We allow to remove it
+                // 1) Down vote (in case)
+                let _ = Vote::down(&conn, cookie_info.id, id).await;
+                let _ = Paper::remove(&conn, id).await;
+            }
+            Flash::success(Redirect::to("/"), format!("Paper removed: {}", id))
+        }
+    }
+}
+
+#[put("/up/<id>")]
+async fn paper_vote_up(jar: &CookieJar<'_>, conn: DbConn, id: i32) -> Flash<Redirect> {
+    let cookie_info = read_cookie(jar);
+    if cookie_info.is_none() {
+        return Flash::error(Redirect::to("/"), "Impossible to vote without login");
+    }
+    let cookie_info = cookie_info.unwrap();
+
+    let res = Vote::up(&conn, cookie_info.id, id).await;
+    Flash::success(Redirect::to("/"), format!("Up vote status: {}", res))
+}
+#[put("/down/<id>")]
+async fn paper_vote_down(jar: &CookieJar<'_>, conn: DbConn, id: i32) -> Flash<Redirect> {
+    let cookie_info = read_cookie(jar);
+    if cookie_info.is_none() {
+        return Flash::error(Redirect::to("/"), "Impossible to vote without login");
+    }
+    let cookie_info = cookie_info.unwrap();
+
+    let res = Vote::down(&conn, cookie_info.id, id).await;
+    Flash::success(Redirect::to("/"), format!("Down vote status: {}", res))
 }
 
 #[derive(FromForm)]
@@ -297,7 +370,16 @@ fn rocket() -> _ {
         .attach(AdHoc::on_ignite("Run Migrations", run_migrations))
         .mount("/", FileServer::from(relative!("static")))
         .mount("/", routes![index]) // Main list of papers
-        .mount("/paper", routes![new]) // Managing papers
+        .mount(
+            "/paper",
+            routes![
+                paper_add,
+                paper_add_post,
+                paper_remove,
+                paper_vote_up,
+                paper_vote_down
+            ],
+        ) // Managing papers
         .mount(
             "/user",
             routes![

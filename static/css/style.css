@@ -1,20 +1,41 @@
 .field-error {
-    border: 1px solid #ff0000 !important;
-  }
-  
-  .field-error-msg {
-    color: #ff0000;
-    display: block;
-    margin: -10px 0 10px 0;
-  }
-  
-  .field-success {
-    border: 1px solid #5AB953 !important;
-  }
-  
-  .field-success-msg {
-    color: #5AB953;
-    display: block;
-    margin: -10px 0 10px 0;
-  }
+  border: 1px solid #ff0000 !important;
+}
+
+.field-error-msg {
+  color: #ff0000;
+  display: block;
+  margin: -10px 0 10px 0;
+}
+
+.field-success {
+  border: 1px solid #5AB953 !important;
+}
+
+.field-success-msg {
+  color: #5AB953;
+  display: block;
+  margin: -10px 0 10px 0;
+}
+
+.vote {
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  font-size: 16px;
+}
+
+.number {
+  display: inline-block;
+  text-align: center;
+}
+
+.vote-up {
+  color: #5AB953;
+}
+
+html {
+  font-size: 14px;
+}
+
   

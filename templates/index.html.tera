@@ -10,55 +10,61 @@
         </div>
     </div>
     {% endif %}
-    
-    {% if username %}
-    <div class="row">
-      <h4>Add a new paper our pile!</h4>
-      <form action="/paper" method="post">
-        <div class="row">
-          <input type="title" placeholder="Paper title..."
-            name="title" id="title" value="" autofocus
-            class="u-full-width" />
-        </div>
-        <div class="row">
-          <input type="url" placeholder="Paper URL..."
-            name="url" id="url" value="" autofocus class="u-full-width" />
-        </div>
-        <div class="row">
-          <input type="text" placeholder="Optional: Venue where paper was published/presented (e.g., SIGGRAPH 2021)"
-            name="venue" id="venue" value="" autofocus class="u-full-width" />
-        </div>
-        <div class="row">
-          <input type="submit" value="add paper">
-        </div>
-      </form>
-    </div>
-    {% else %}
-    <div class="row">
-      <h4>Need to login before proposing new papers</h4>
-    </div>
-    {% endif %}
 
     <div class="row">
-    <h4>Current paper in our list</h4>
+      <p>
+      {% if cookie_info %}
+        Please propose new paper and up vote papers that you want to read!
+      {% else %}
+        Please register and login to up vote and propose new papers!
+      {% endif %}
+      </p>
     </div>
+
     <div class="row">
-      <div class="twelve columns">
-        <ul>
+    </div>   
         {% for paper in papers %}
-            <li>
-              <span>{{ paper.id }} -- {{ paper.title }}</span>
-              <!--<form class="inline" action="/todo/{{paper.id}}" method="post">
-                <input type="hidden" name="_method" value="put" />
-                <button class="small" type="submit">undo</button>
-              </form>
-              <form class="inline" action="/todo/{{paper.id}}" method="post">
-                <input type="hidden" name="_method" value="delete" />
-                <button class="primary small" type="submit">delete</button>
-              </form>
-            </li>-->
+          <div class="row">
+            <div class="two columns">
+             {% if cookie_info %}
+             {% if paper.1 %}
+                <form class="inline" action="/paper/down/{{paper.0.id}}" method="post">
+                  <input type="hidden" name="_method" value="put" />
+                  <button class="small" type="submit">
+                    <div class="vote" >
+                      <span class="number"><i class="fas fa-angle-down"></i>  <i class="fas fa-thumbs-up"></i> {{ paper.0.vote_count }}</span>
+                    </div>
+                   </button>
+                </form>
+              {% else %}
+                  <form class="inline" action="/paper/up/{{paper.0.id}}" method="post">
+                    <input type="hidden" name="_method" value="put" />
+                    <button type="submit">
+                      <div class="vote">
+                        <span class="number"><i class="fas fa-angle-up"></i>  <i class="fas fa-thumbs-up"></i> {{ paper.0.vote_count }}</span>
+                      </div>
+                    </button>
+                  </form>
+              {% endif %}
+              {% else %}
+                <span class="number"><i class="fas fa-thumbs-up"></i> {{ paper.0.vote_count }}</span>
+              {% endif %}
+              </div>
+
+              <div class="ten columns">
+                <i class="fas fa-book"></i>   <a href="{{paper.0.url}}" >{{ paper.0.title }}</a>{% if paper.0.venue %} (<b>{{paper.0.venue}}</b>){%endif%}
+                {% if cookie_info %}
+                {% if paper.0.user_id == cookie_info.id %}
+                <form class="inline" action="/paper/remove/{{paper.0.id}}" method="post">
+                  <input type="hidden" name="_method" value="put" />
+                    <button class="small" type="submit">
+                      <i class="fas fa-trash-alt"></i>
+                    </button>
+                  </form>
+                {% endif %}
+                {% endif %}
+              </div>
+          </div>
         {% endfor %}
-        </ul>
-      </div>
     </div>
 {% endblock content %}

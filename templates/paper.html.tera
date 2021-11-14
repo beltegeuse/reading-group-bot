@@ -1,0 +1,32 @@
+{% extends "base" %}
+  
+{% block content %}
+  {% if cookie_info %}
+    <div class="row">
+      <h4>Add a new paper our pile!</h4>
+      <form action="/paper" method="post">
+        <div class="row">
+          <input type="title" placeholder="Paper title..."
+            name="title" id="title" value="" autofocus
+            class="u-full-width" />
+        </div>
+        <div class="row">
+          <input type="url" placeholder="Paper URL..."
+            name="url" id="url" value="" autofocus class="u-full-width" />
+        </div>
+        <div class="row">
+          <input type="text" placeholder="Optional: Venue where paper was published/presented (e.g., SIGGRAPH 2021)"
+            name="venue" id="venue" value="" autofocus class="u-full-width" />
+        </div>
+        <div class="row">
+          <input type="submit" value="add paper">
+        </div>
+      </form>
+    </div>
+    {% else %}
+    <div class="row">
+      <h4>Need to login before proposing new papers</h4>
+    </div>
+    {% endif %}
+
+{% endblock content %}

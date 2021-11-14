@@ -7,6 +7,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <link href="//fonts.googleapis.com/css?family=Raleway:400,300,600" rel="stylesheet" type="text/css">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css" integrity="sha384-DyZ88mC6Up2uqS4h/KRgHuoeGwBcD4Ng9SiP4dIRy0EXTlnuz47vAwmeGwVChigm" crossorigin="anonymous">
+
   <link rel="stylesheet" href="/css/normalize.css">
   <link rel="stylesheet" href="/css/skeleton.css">
   <link rel="stylesheet" href="/css/gh.css">
@@ -16,17 +18,18 @@
     <nav class="nav-show">
         <div class="container">
             <ul>
-                <li><a href="/">Reading group</a></li>
-                <li>
+                <li><a href="/"><i class="fas fa-glasses"></i> Reading group</a></li>
+                <li><a href="/paper/add"><i class="fas fa-plus-circle"></i> Add paper</a></li>
+                <!--<li>
                     <a href="#decks">Papers</a>
                     <ul>
                         <li><a href="#">Decks to Beat</a></li>
                         <li><a href="#">Community Decks</a></li>
                     </ul>
-                </li>
+                </li>-->
                 
-                {% if username %}
-                <li class="u-pull-right"><a href="/user/logout">Logout {{username}}</a></li>
+                {% if cookie_info %}
+                <li class="u-pull-right"><a href="/user/logout">Logout {{cookie_info.name}}</a></li>
                 {% else %}
                 <li class="u-pull-right"><a href="/user/login">Login</a></li>
                 <li class="right"><a href="/user/register">Register</a></li>
