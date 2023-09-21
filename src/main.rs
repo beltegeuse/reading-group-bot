@@ -9,6 +9,8 @@ extern crate diesel_migrations;
 
 use std::collections::HashMap;
 
+use diesel_migrations::{embed_migrations, MigrationHarness};
+use diesel_migrations::EmbeddedMigrations;
 // Use all modelss
 use model::*;
 
@@ -30,26 +32,26 @@ pub mod schema;
 pub struct DbConn(diesel::SqliteConnection);
 
 // Form
-#[allow(dead_code)]
-#[derive(FromForm, Debug)]
-pub struct SlackRequest {
-    pub token: String,
-    pub text: String,
-    pub channel_id: String,
-    pub team_id: String,
-    pub team_domain: String,
-    pub channel_name: String,
-    pub user_id: String,
-    pub user_name: String,
-    pub command: String,
-    pub response_url: String,
-}
+// #[allow(dead_code)]
+// #[derive(FromForm, Debug)]
+// pub struct SlackRequest {
+//     pub token: String,
+//     pub text: String,
+//     pub channel_id: String,
+//     pub team_id: String,
+//     pub team_domain: String,
+//     pub channel_name: String,
+//     pub user_id: String,
+//     pub user_name: String,
+//     pub command: String,
+//     pub response_url: String,
+// }
 
-#[derive(Serialize, Debug)]
-pub struct SlackResponse {
-    pub response_type: String,
-    pub text: String,
-}
+// #[derive(Serialize, Debug)]
+// pub struct SlackResponse {
+//     pub response_type: String,
+//     pub text: String,
+// }
 
 // Extract from cookie
 #[derive(Debug, Serialize)]
@@ -348,16 +350,13 @@ async fn user_register_post(conn: DbConn, register_form: Form<RegisterForm>) -> 
     }
 }
 
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
+
 async fn run_migrations(rocket: Rocket<Build>) -> Rocket<Build> {
-    // This macro from `diesel_migrations` defines an `embedded_migrations`
-    // module containing a function named `run`. This allows the example to be
-    // run and tested without any outside setup of the database.
-    embed_migrations!();
+   
 
     let conn = DbConn::get_one(&rocket).await.expect("database connection");
-    conn.run(|c| embedded_migrations::run(c))
-        .await
-        .expect("can run migrations");
+    conn.run_pending_migrations(MIGRATIONS).unwrap();
 
     rocket
 }
