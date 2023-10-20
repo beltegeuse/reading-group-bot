@@ -6,6 +6,7 @@ import csv
 parser = argparse.ArgumentParser(description='Generate a random sample of papers from a csv file')
 parser.add_argument('file', metavar='file', type=str, help='csv file to sample from')
 parser.add_argument('n', metavar='n', type=int, help='number of papers to sample')
+parser.add_argument('a', metavar='a', type=str, help='csv file to role list')
 args = parser.parse_args()
 
 # Read the csv file and store the lines in a list
@@ -20,6 +21,8 @@ with open(args.file, 'r', encoding="utf8") as f:
             continue # Skip the header
 
         papers.append(row)
+
+print(f"Read {len(papers)} papers")
 
 selected_paper = []
 authors = set(())
@@ -36,3 +39,13 @@ command = '/simplepoll "Next paper for our reading group, you can vote to any pa
 for paper in selected_paper:
     command += f' "{paper["Paper title"]} - {paper["Suggested by"]}"'
 print(command)    
+
+# Read the csv file containing authors and store the lines in a list
+authors = []
+with open(args.a, 'r', encoding="utf8") as f:
+    print(f"Reading file: {args.a}")
+    authors = [l.replace(",", "").strip() for l in f.readlines() ]
+
+authors = list(authors)
+random.shuffle(authors)
+print(f"Authors: {authors}")
