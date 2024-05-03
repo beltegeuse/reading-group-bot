@@ -1,0 +1,17 @@
+Paper title,Venue,URL,Suggested by
+SuGaR: Surface-Aligned Gaussian Splatting for Efficient 3D Mesh Reconstruction and High-Quality Mesh Rendering,CVPR 2024,https://anttwo.github.io/sugar/,Jordan
+Systematically Differentiating Parametric Discontinuities,SIGGRAPH 2021,http://people.csail.mit.edu/sbangaru/projects/teg-2021/index.html,Jordan
+4D Gaussian Splatting for Real-Time Dynamic Scene Rendering,CVPR 2024,https://guanjunwu.github.io/4dgs/,Jordan
+Seeing photons in color,SIGGRAPH 2023,https://wisionlab.com/project/seeing-photons-in-color/,Daniel
+NeRF-Texture: Texture Synthesis with Neural Radiance Fields,SIGGRAPH 2023,https://yihua7.github.io/NeRF-Texture-web/,Daniel
+Micro-Mesh Construction,SIGGRAPH 2023,https://micromesh.di.unimi.it/,Daniel
+Deep Adaptive Sampling and Reconstruction using Analytic Distributions,SIGGRAPH Asia 2022,https://studios.disneyresearch.com/2022/11/30/deep-adaptive-sampling-and-reconstruction-using-analytic-distributions/,Joey
+Real-Time Neural Appearance Models,SIGGRAPH 2023,https://research.nvidia.com/labs/rtr/neural_appearance_models/,Joey
+A Practical and Hierarchical Yarn-based Shading Model for Cloth,EGSR 2023,https://sites.cs.ucsb.edu/~lingqi/publications/paper_egsr23cloth.pdf,Ishaan
+Discontinuity-aware 2D neural fields,SIGGRAPH Asia 2023,https://iliyan.com/publications/DiscontinuityAwareNeuralFields,Ishaan
+Random-Access Neural Compression of Material Textures,SIGGRAPH 2023,https://research.nvidia.com/labs/rtr/neural_texture_compression/,Ishaan
+Real-Time Neural BRDF with Spherically Distributed Primitives,SIGGRAPH Asia 2023,https://arxiv.org/abs/2310.08332,Joey
+Joint Sampling and Optimisation for Inverse Rendering,SIGGRAPH Asia 2023,https://sampling.mpi-inf.mpg.de/2023-balint-meta.html,Terry
+Transforming a Non-Differentiable Rasterizer into a Differentiable One with Stochastic Gradient Estimation,I3D 2024,https://ggx-research.github.io/publication/2024/04/17/publication-intel-diffrast.html,Adrien
+3D Gaussian Splatting as Markov Chain Monte Carlo,Arxiv 2024-04,https://arxiv.org/abs/2404.09591,Adrien
+Plateau-Reduced Differentiable Path Tracing,CVPR 2023,https://mfischer-ucl.github.io/prdpt/,Adrien
