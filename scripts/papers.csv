@@ -1,7 +1,6 @@
 Paper title,Venue,URL,Suggested by
-2DGS: 2D Gaussian Splatting for Geometrically Accurate Radiance Fields ,SIGGRAPH 2024,https://surfsplatting.github.io/,Jordan
+Volumetric Rendering with Baked Quadrature Fields,ECCV 2024,https://quadraturefields.github.io/,Jordan
 Zero Grads: Learning Local Surrogate Losses for Non-Differentiable Graphics,SIGGRAPH 2024,https://mfischer-ucl.github.io/zerograds/,Jordan
-3D Gaussian Ray Tracing: Fast Tracing of Particle Scenes,Arxiv,https://gaussiantracer.github.io/,Jordan
 Seeing photons in color,SIGGRAPH 2023,https://wisionlab.com/project/seeing-photons-in-color/,Daniel
 NeRF-Texture: Texture Synthesis with Neural Radiance Fields,SIGGRAPH 2023,https://yihua7.github.io/NeRF-Texture-web/,Daniel
 Micro-Mesh Construction,SIGGRAPH 2023,https://micromesh.di.unimi.it/,Daniel
@@ -15,6 +14,12 @@ Filter-Adapted Spatio-Temporal Sampling for Real-Time Rendering,I3D 2024,https:/
 Photon-Driven Neural Reconstruction for Path Guiding,TOG 2021,http://graphics.ucsd.edu/~henrik/papers/photon_reconstruction_path_guiding.pdf,Vishesh
 Practical Path Guiding for Efficient Light-Transport Simulation,EGSR 2017,https://jannovak.info/publications/PathGuide/index.html,Vishesh
 Inverse Global Illumination using a Neural Radiometric Prior,SIGGRAPH 2023,Inverse Global Illumination using a Neural Radiometric Prior (jannovak.info),Vishesh
-Specular Polynomials,SIGGRAPH 2024,https://arxiv.org/pdf/2405.13409,Adrien
 Practical Error Estimation for Denoised Monte Carlo Image Synthesis,SIGGRAPH 2024,https://people.compute.dtu.dk/jerf/papers/stopping.pdf,Adrien
 RGB↔X: Image decomposition and synthesis using material- and lighting-aware diffusion models,SIGGRPAH 2024,https://iliyan.com/publications/RGBX,Adrien
+Differentiable Photon Mapping using Generalized Path Gradients,SIGGRAPH Asia 2024,https://luanfujun.com/files/siga2024/PMDR.pdf,Adrien
+Residual path integrals for re-rendering,EGSR 2024,https://bingxu.tech/projects/2024_residual/page.html,Jie
+BSDF importance sampling using a diffusion model,SIGGRAPH Asia 2024,https://fzy28.github.io/BSDF_diffusion_sampling_web/,Joey
+Efficient Image-Space Shape Splatting for Monte Carlo Rendering,SIGGRAPH Asia 2024,https://cs.uwaterloo.ca/~xtong/assets/pdf/shape_splatting.pdf,Joey
+From microfacets to participating media: A unified theory of light transport with stochastic geometry,SIGGRAPH 2024,https://research.nvidia.com/publication/2024-07_microfacets-participating-media-unified-theory-light-transport-stochastic,Justin
+Temporally Stable Metropolis Light Transport Denoising using Recurrent Transformer Blocks,SIGGRAPH 2024,https://czzzzh.github.io/MLTD/index.html,Justin
+LightFormer: Light-Oriented Global Neural Rendering in Dynamic Scene,SIGGRAPH 2024,https://wylighting.github.io/lightformer/,Justin
