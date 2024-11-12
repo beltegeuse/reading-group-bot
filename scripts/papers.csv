@@ -1,14 +1,14 @@
 Paper title,Venue,URL,Suggested by
-Volumetric Rendering with Baked Quadrature Fields,ECCV 2024,https://quadraturefields.github.io/,Jordan
-Zero Grads: Learning Local Surrogate Losses for Non-Differentiable Graphics,SIGGRAPH 2024,https://mfischer-ucl.github.io/zerograds/,Jordan
+EVER: Exact Volumetric Ellipsoid Rendering for Real-time View Synthesis,Arxiv,https://half-potato.gitlab.io/posts/ever/,Jordan
+Gaussian Frosting: Editable Complex Radiance Fields with Real-Time Rendering,ECCV 2024,https://anttwo.github.io/frosting/,Jordan
 Seeing photons in color,SIGGRAPH 2023,https://wisionlab.com/project/seeing-photons-in-color/,Daniel
 NeRF-Texture: Texture Synthesis with Neural Radiance Fields,SIGGRAPH 2023,https://yihua7.github.io/NeRF-Texture-web/,Daniel
 Micro-Mesh Construction,SIGGRAPH 2023,https://micromesh.di.unimi.it/,Daniel
 Deep Adaptive Sampling and Reconstruction using Analytic Distributions,SIGGRAPH Asia 2022,https://studios.disneyresearch.com/2022/11/30/deep-adaptive-sampling-and-reconstruction-using-analytic-distributions/,Joey
 Real-Time Neural Appearance Models,SIGGRAPH 2023,https://research.nvidia.com/labs/rtr/neural_appearance_models/,Joey
-A Practical and Hierarchical Yarn-based Shading Model for Cloth,EGSR 2023,https://sites.cs.ucsb.edu/~lingqi/publications/paper_egsr23cloth.pdf,Ishaan
-Discontinuity-aware 2D neural fields,SIGGRAPH Asia 2023,https://iliyan.com/publications/DiscontinuityAwareNeuralFields,Ishaan
-Random-Access Neural Compression of Material Textures,SIGGRAPH 2023,https://research.nvidia.com/labs/rtr/neural_texture_compression/,Ishaan
+Manuka: A Batch-Shading Architecture for Spectral Path Tracing in Movie Production,SIGGRAPH 2018,https://dl.acm.org/doi/10.1145/3182161,Ishaan
+A Realistic Multi-scale Surface-based Cloth Appearance Model,SIGGRAPH 2024,https://sites.cs.ucsb.edu/~lingqi/publications/paper_sig24cloth.pdf,Ishaan
+Real-time Neural Rendering of Dynamic Light Fields,EG 2024,https://onlinelibrary.wiley.com/doi/10.1111/cgf.15014?af=R,Ishaan
 N-BVH: Neural ray queries with bounding volume hierarchies,SIGGRAPH 2024,https://weiphil.github.io/portfolio/neural_bvh,Ishaan
 Filter-Adapted Spatio-Temporal Sampling for Real-Time Rendering,I3D 2024,https://www.ea.com/seed/news/spatio-temporal-sampling,Terry
 Photon-Driven Neural Reconstruction for Path Guiding,TOG 2021,http://graphics.ucsd.edu/~henrik/papers/photon_reconstruction_path_guiding.pdf,Vishesh
@@ -17,9 +17,9 @@ Inverse Global Illumination using a Neural Radiometric Prior,SIGGRAPH 2023,Inver
 Practical Error Estimation for Denoised Monte Carlo Image Synthesis,SIGGRAPH 2024,https://people.compute.dtu.dk/jerf/papers/stopping.pdf,Adrien
 RGB↔X: Image decomposition and synthesis using material- and lighting-aware diffusion models,SIGGRPAH 2024,https://iliyan.com/publications/RGBX,Adrien
 Differentiable Photon Mapping using Generalized Path Gradients,SIGGRAPH Asia 2024,https://luanfujun.com/files/siga2024/PMDR.pdf,Adrien
-Residual path integrals for re-rendering,EGSR 2024,https://bingxu.tech/projects/2024_residual/page.html,Jie
 BSDF importance sampling using a diffusion model,SIGGRAPH Asia 2024,https://fzy28.github.io/BSDF_diffusion_sampling_web/,Joey
 Efficient Image-Space Shape Splatting for Monte Carlo Rendering,SIGGRAPH Asia 2024,https://cs.uwaterloo.ca/~xtong/assets/pdf/shape_splatting.pdf,Joey
 From microfacets to participating media: A unified theory of light transport with stochastic geometry,SIGGRAPH 2024,https://research.nvidia.com/publication/2024-07_microfacets-participating-media-unified-theory-light-transport-stochastic,Justin
 Temporally Stable Metropolis Light Transport Denoising using Recurrent Transformer Blocks,SIGGRAPH 2024,https://czzzzh.github.io/MLTD/index.html,Justin
 LightFormer: Light-Oriented Global Neural Rendering in Dynamic Scene,SIGGRAPH 2024,https://wylighting.github.io/lightformer/,Justin
+An Implicit Physical Face Model Driven by Expression and Style,SIGGRAPH Asia 2023,https://studios.disneyresearch.com/2023/11/29/an-implicit-physical-face-model-driven-by-expression-and-style/?utm_source=rss&utm_medium=rss&utm_campaign=an-implicit-physical-face-model-driven-by-expression-and-style,Jie
