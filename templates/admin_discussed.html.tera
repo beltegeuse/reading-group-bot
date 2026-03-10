@@ -17,31 +17,32 @@
     </article>
   {% endif %}
 
-  {% for paper in papers %}
+  {% for item in papers %}
     <div class="box mb-4">
       <div class="columns is-vcentered is-multiline">
         <div class="column">
           <p>
-            {% if paper.pdf_file %}
-              <a href="/pdfs/{{paper.pdf_file}}" target="_blank"><strong>{{ paper.title }}</strong></a>
-            {% elif paper.url %}
-              <a href="{{paper.url}}" target="_blank"><strong>{{ paper.title }}</strong></a>
+            {% if item.paper.pdf_file %}
+              <a href="/pdfs/{{item.paper.pdf_file}}" target="_blank"><strong>{{ item.paper.title }}</strong></a>
+            {% elif item.paper.url %}
+              <a href="{{item.paper.url}}" target="_blank"><strong>{{ item.paper.title }}</strong></a>
             {% else %}
-              <strong>{{ paper.title }}</strong>
+              <strong>{{ item.paper.title }}</strong>
             {% endif %}
           </p>
           <p class="mt-2">
-            {% if paper.venue %}
-              <span class="tag">{{ paper.venue }}</span>
+            {% if item.paper.venue %}
+              <span class="tag">{{ item.paper.venue }}</span>
             {% endif %}
-            {% if paper.publication_year %}
-              <span class="tag is-info">{{ paper.publication_year }}</span>
+            {% if item.paper.publication_year %}
+              <span class="tag is-info">{{ item.paper.publication_year }}</span>
             {% endif %}
-            <span class="tag is-link is-light">Votes {{ paper.vote_count }}</span>
+            <span class="tag is-link is-light">Votes {{ item.paper.vote_count }}</span>
+            <span class="tag is-grey is-light">Proposed by {{ item.username }}</span>
           </p>
         </div>
         <div class="column is-narrow">
-          <form action="/paper/discuss/{{paper.id}}" method="post" class="field is-grouped">
+          <form action="/paper/discuss/{{item.paper.id}}" method="post" class="field is-grouped">
             <input type="hidden" name="_method" value="put" />
             <div class="control">
               <input class="input" type="date" name="discussed_date" required>

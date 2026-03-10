@@ -85,9 +85,17 @@ fn read_cookie(jar: &CookieJar<'_>) -> Option<CookieInfo> {
 // Context for the template
 #[derive(Debug, Serialize)]
 #[serde(crate = "rocket::serde")]
+struct PaperWithUsername {
+    paper: Paper,
+    vote_state: i32,
+    username: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(crate = "rocket::serde")]
 struct Context {
     flash: Option<(String, String)>,
-    papers: Vec<(Paper, i32)>,
+    papers: Vec<PaperWithUsername>,
     cookie_info: Option<CookieInfo>,
     search_query: String,
     only_not_voted: bool,
@@ -95,9 +103,16 @@ struct Context {
 
 #[derive(Debug, Serialize)]
 #[serde(crate = "rocket::serde")]
+struct PaperWithUserInfo {
+    paper: Paper,
+    username: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(crate = "rocket::serde")]
 struct PaperListContext {
     flash: Option<(String, String)>,
-    papers: Vec<Paper>,
+    papers: Vec<PaperWithUserInfo>,
     cookie_info: Option<CookieInfo>,
 }
 
@@ -176,9 +191,22 @@ async fn index(
                 papers.retain(|(_, vote_state)| *vote_state == 0);
             }
 
+            let mut papers_with_username = Vec::new();
+            for (paper, vote_state) in papers {
+                let username = match Login::get(&conn, paper.user_id).await {
+                    Ok(login) => login.name,
+                    Err(_) => "Unknown".to_string(),
+                };
+                papers_with_username.push(PaperWithUsername {
+                    paper,
+                    vote_state,
+                    username,
+                });
+            }
+
             Context {
                 flash,
-                papers,
+                papers: papers_with_username,
                 cookie_info,
                 search_query,
                 only_not_voted,
@@ -205,7 +233,17 @@ async fn paper_ranking(
     let flash = flash.map(FlashMessage::into_inner);
 
     let papers = match Paper::all_active(&conn).await {
-        Ok(papers) => papers,
+        Ok(papers) => {
+            let mut papers_with_username = Vec::new();
+            for paper in papers {
+                let username = match Login::get(&conn, paper.user_id).await {
+                    Ok(login) => login.name,
+                    Err(_) => "Unknown".to_string(),
+                };
+                papers_with_username.push(PaperWithUserInfo { paper, username });
+            }
+            papers_with_username
+        }
         Err(_) => vec![],
     };
 
@@ -228,7 +266,17 @@ async fn paper_discussed(
     let flash = flash.map(FlashMessage::into_inner);
 
     let papers = match Paper::all_discussed(&conn).await {
-        Ok(papers) => papers,
+        Ok(papers) => {
+            let mut papers_with_username = Vec::new();
+            for paper in papers {
+                let username = match Login::get(&conn, paper.user_id).await {
+                    Ok(login) => login.name,
+                    Err(_) => "Unknown".to_string(),
+                };
+                papers_with_username.push(PaperWithUserInfo { paper, username });
+            }
+            papers_with_username
+        }
         Err(_) => vec![],
     };
 
@@ -257,7 +305,17 @@ async fn paper_admin_discussed(
 
     let flash = flash.map(FlashMessage::into_inner);
     let papers = match Paper::all_active(&conn).await {
-        Ok(papers) => papers,
+        Ok(papers) => {
+            let mut papers_with_username = Vec::new();
+            for paper in papers {
+                let username = match Login::get(&conn, paper.user_id).await {
+                    Ok(login) => login.name,
+                    Err(_) => "Unknown".to_string(),
+                };
+                papers_with_username.push(PaperWithUserInfo { paper, username });
+            }
+            papers_with_username
+        }
         Err(_) => vec![],
     };
     let context = PaperListContext {

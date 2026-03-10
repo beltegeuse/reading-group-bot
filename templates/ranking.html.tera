@@ -22,35 +22,37 @@
           <tr>
             <th>#</th>
             <th>Paper</th>
+            <th>Proposed by</th>
             <th>Votes</th>
             <th>Added</th>
           </tr>
         </thead>
         <tbody>
-          {% for paper in papers %}
+          {% for item in papers %}
             <tr>
               <td>{{ loop.index }}</td>
               <td>
-                {% if paper.pdf_file %}
-                  <a href="/pdfs/{{paper.pdf_file}}" target="_blank"><strong>{{ paper.title }}</strong></a>
-                {% elif paper.url %}
-                  <a href="{{paper.url}}" target="_blank"><strong>{{ paper.title }}</strong></a>
+                {% if item.paper.pdf_file %}
+                  <a href="/pdfs/{{item.paper.pdf_file}}" target="_blank"><strong>{{ item.paper.title }}</strong></a>
+                {% elif item.paper.url %}
+                  <a href="{{item.paper.url}}" target="_blank"><strong>{{ item.paper.title }}</strong></a>
                 {% else %}
-                  <strong>{{ paper.title }}</strong>
+                  <strong>{{ item.paper.title }}</strong>
                 {% endif %}
                 <div>
-                  {% if paper.venue %}
-                    <span class="tag">{{ paper.venue }}</span>
+                  {% if item.paper.venue %}
+                    <span class="tag">{{ item.paper.venue }}</span>
                   {% endif %}
-                  {% if paper.publication_year %}
-                    <span class="tag is-info">{{ paper.publication_year }}</span>
+                  {% if item.paper.publication_year %}
+                    <span class="tag is-info">{{ item.paper.publication_year }}</span>
                   {% endif %}
                 </div>
               </td>
+              <td>{{ item.username }}</td>
               <td>
-                <span class="tag is-link is-light">{{ paper.vote_count }}</span>
+                <span class="tag is-link is-light">{{ item.paper.vote_count }}</span>
               </td>
-              <td>{{ paper.added_at }}</td>
+              <td>{{ item.paper.added_at }}</td>
             </tr>
           {% endfor %}
         </tbody>

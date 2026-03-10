@@ -17,27 +17,28 @@
     </article>
   {% endif %}
 
-  {% for paper in papers %}
+  {% for item in papers %}
     <div class="box mb-4">
       <p class="mb-2">
-        {% if paper.pdf_file %}
-          <a href="/pdfs/{{paper.pdf_file}}" target="_blank"><strong>{{ paper.title }}</strong></a>
-        {% elif paper.url %}
-          <a href="{{paper.url}}" target="_blank"><strong>{{ paper.title }}</strong></a>
+        {% if item.paper.pdf_file %}
+          <a href="/pdfs/{{item.paper.pdf_file}}" target="_blank"><strong>{{ item.paper.title }}</strong></a>
+        {% elif item.paper.url %}
+          <a href="{{item.paper.url}}" target="_blank"><strong>{{ item.paper.title }}</strong></a>
         {% else %}
-          <strong>{{ paper.title }}</strong>
+          <strong>{{ item.paper.title }}</strong>
         {% endif %}
       </p>
       <p class="mb-2">
-        {% if paper.venue %}
-          <span class="tag">{{ paper.venue }}</span>
+        {% if item.paper.venue %}
+          <span class="tag">{{ item.paper.venue }}</span>
         {% endif %}
-        {% if paper.publication_year %}
-          <span class="tag is-info">{{ paper.publication_year }}</span>
+        {% if item.paper.publication_year %}
+          <span class="tag is-info">{{ item.paper.publication_year }}</span>
         {% endif %}
-        <span class="tag is-success is-light">Discussed {{ paper.discussed_at }}</span>
-        <span class="tag is-light">Added {{ paper.added_at }}</span>
-        <span class="tag is-link is-light">Votes {{ paper.vote_count }}</span>
+        <span class="tag is-success is-light">Discussed {{ item.paper.discussed_at }}</span>
+        <span class="tag is-light">Added {{ item.paper.added_at }}</span>
+        <span class="tag is-link is-light">Votes {{ item.paper.vote_count }}</span>
+        <span class="tag is-grey is-light">Proposed by {{ item.username }}</span>
       </p>
     </div>
   {% endfor %}
