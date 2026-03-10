@@ -1,2 +1,6 @@
 /target
 *.csv
+/local/
+db.sqlite
+db.sqlite-wal
+db.sqlite-shm

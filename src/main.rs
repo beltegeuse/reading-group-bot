@@ -11,6 +11,7 @@ use diesel_migrations::{embed_migrations, MigrationHarness};
 use diesel_migrations::EmbeddedMigrations;
 // Use all modelss
 use model::*;
+use user::seed_default_user;
 
 // Rocket tools
 use rocket::fairing::AdHoc;
@@ -25,6 +26,7 @@ use rocket_dyn_templates::Template;
 
 pub mod model;
 pub mod schema;
+pub mod user;
 
 #[database("sqlite_database")]
 pub struct DbConn(diesel::SqliteConnection);
@@ -355,6 +357,7 @@ async fn run_migrations(rocket: Rocket<Build>) -> Rocket<Build> {
     conn.run(|c| c.run_pending_migrations(MIGRATIONS).map(|_| ()))
         .await
         .unwrap();
+    seed_default_user(&conn).await;
 
     rocket
 }
