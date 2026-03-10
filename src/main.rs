@@ -5,7 +5,8 @@ extern crate rocket_sync_db_pools;
 #[macro_use]
 extern crate diesel;
 
-use std::collections::HashMap;
+use std::fs;
+use uuid::Uuid;
 
 use diesel_migrations::{embed_migrations, MigrationHarness};
 use diesel_migrations::EmbeddedMigrations;
@@ -15,9 +16,9 @@ use user::seed_default_user;
 
 // Rocket tools
 use rocket::fairing::AdHoc;
-use rocket::form::Form;
-use rocket::fs::{relative, FileServer};
-use rocket::http::{Cookie, CookieJar};
+use rocket::form::{Contextual, Form};
+use rocket::fs::{relative, FileServer, TempFile};
+use rocket::http::{Cookie, CookieJar, Status};
 use rocket::request::FlashMessage;
 use rocket::response::{Flash, Redirect};
 use rocket::serde::Serialize;
@@ -85,6 +86,13 @@ struct Context {
 #[serde(crate = "rocket::serde")]
 struct ContextNull {}
 
+#[derive(Debug, Serialize)]
+#[serde(crate = "rocket::serde")]
+struct PaperAddContext {
+    flash: Option<(String, String)>,
+    cookie_info: Option<CookieInfo>,
+}
+
 // Forward flash message if we have one
 #[get("/")]
 async fn index(jar: &CookieJar<'_>, flash: Option<FlashMessage<'_>>, conn: DbConn) -> Template {
@@ -113,22 +121,24 @@ async fn index(jar: &CookieJar<'_>, flash: Option<FlashMessage<'_>>, conn: DbCon
 }
 
 #[get("/add")]
-async fn paper_add(jar: &CookieJar<'_>) -> Template {
+async fn paper_add(jar: &CookieJar<'_>, flash: Option<FlashMessage<'_>>) -> Template {
     let cookie_info = read_cookie(jar);
-    let context =  HashMap::from([("cookie_info", cookie_info)]);
+    let flash = flash.map(FlashMessage::into_inner);
+    let context = PaperAddContext { flash, cookie_info };
     Template::render("paper", &context)
 }
 
 #[derive(Debug, FromForm)]
-pub struct PaperForm {
+pub struct PaperForm<'r> {
     pub title: String,
-    pub url: String,
+    pub url: Option<String>,
     pub venue: String,
+    pub pdf: Option<TempFile<'r>>,
 }
 #[post("/add", data = "<paper_form>")]
 async fn paper_add_post(
     jar: &CookieJar<'_>,
-    paper_form: Form<PaperForm>,
+    paper_form: Form<Contextual<'_, PaperForm<'_>>>,
     conn: DbConn,
 ) -> Flash<Redirect> {
     // Check login first
@@ -141,13 +151,60 @@ async fn paper_add_post(
     }
     let cookie_info = cookie_info.unwrap();
 
+    let paper_form = paper_form.into_inner();
+    let upload_too_large = paper_form.context.status() == Status::PayloadTooLarge
+        || paper_form
+            .context
+            .field_errors("pdf")
+            .any(|error| error.status() == Status::PayloadTooLarge);
+
+    if upload_too_large {
+        return Flash::error(
+            Redirect::to("/paper/add"),
+            "Uploaded PDF is too large. Maximum allowed size is 200 MiB.",
+        );
+    }
+
+    let mut paper = match paper_form.value {
+        Some(paper) => paper,
+        None => {
+            return Flash::error(
+                Redirect::to("/paper/add"),
+                "Invalid paper submission. Please check the form and try again.",
+            )
+        }
+    };
+
     // Check if the form is correct
-    let paper = paper_form.into_inner();
-    if paper.title.is_empty() {
+    let title = paper.title.trim().to_string();
+    if title.is_empty() {
         return Flash::error(Redirect::to("/"), "Title cannot be empty.");
     }
-    if paper.url.is_empty() {
-        return Flash::error(Redirect::to("/"), "URL cannot be empty.");
+
+    let url = paper
+        .url
+        .take()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    let venue = {
+        let value = paper.venue.trim().to_string();
+        if value.is_empty() {
+            None
+        } else {
+            Some(value)
+        }
+    };
+    let has_pdf = paper
+        .pdf
+        .as_ref()
+        .map(|pdf| pdf.len() > 0)
+        .unwrap_or(false);
+
+    if url.is_none() && !has_pdf {
+        return Flash::error(
+            Redirect::to("/paper/add"),
+            "Provide either a paper URL or a PDF file.",
+        );
     }
 
     // Check if the paper was already proposed
@@ -162,7 +219,7 @@ async fn paper_add_post(
         Ok(papers) => {
             for p in papers {
                 // TODO: Do it more robustly
-                if p.title == paper.title {
+                if p.title.eq_ignore_ascii_case(&title) {
                     error_!("new() paper already added");
                     return Flash::error(Redirect::to("/"), "Paper have been already proposed!");
                 }
@@ -170,8 +227,50 @@ async fn paper_add_post(
         }
     }
 
-    if let Err(e) = Paper::insert(&conn, paper, cookie_info.id).await {
+    let pdf_file = if has_pdf {
+        let pdf = paper.pdf.as_mut().unwrap();
+        let is_pdf = pdf
+            .content_type()
+            .and_then(|content_type| content_type.extension())
+            .map(|ext| ext.as_str().eq_ignore_ascii_case("pdf"))
+            .unwrap_or(false)
+            || pdf
+                .name()
+                .map(|name| name.to_ascii_lowercase().ends_with(".pdf"))
+                .unwrap_or(false);
+
+        if !is_pdf {
+            return Flash::error(Redirect::to("/paper/add"), "Uploaded file must be a PDF.");
+        }
+
+        if let Err(e) = fs::create_dir_all("static/pdfs") {
+            error_!("create pdf directory error: {}", e);
+            return Flash::error(
+                Redirect::to("/paper/add"),
+                "Could not prepare PDF storage.",
+            );
+        }
+
+        let filename = format!("{}.pdf", Uuid::new_v4());
+        let filepath = format!("static/pdfs/{}", filename);
+        if let Err(e) = pdf.move_copy_to(&filepath).await {
+            error_!("persist pdf error: {}", e);
+            return Flash::error(
+                Redirect::to("/paper/add"),
+                "Could not save the uploaded PDF.",
+            );
+        }
+
+        Some(filename)
+    } else {
+        None
+    };
+
+    if let Err(e) = Paper::insert(&conn, title, url, venue, pdf_file.clone(), cookie_info.id).await {
         error_!("DB insertion error: {}", e);
+        if let Some(pdf_file) = pdf_file {
+            let _ = fs::remove_file(format!("static/pdfs/{}", pdf_file));
+        }
         Flash::error(
             Redirect::to("/"),
             "Paper could not be inserted due an internal error.",
@@ -199,10 +298,14 @@ async fn paper_remove(jar: &CookieJar<'_>, conn: DbConn, id: i32) -> Flash<Redir
         }
         Ok(paper) => {
             if paper.user_id == cookie_info.id {
+                let pdf_file = paper.pdf_file.clone();
                 // We allow to remove it
                 // 1) Down vote (in case)
                 let _ = Vote::down(&conn, cookie_info.id, id).await;
                 let _ = Paper::remove(&conn, id).await;
+                if let Some(pdf_file) = pdf_file {
+                    let _ = fs::remove_file(format!("static/pdfs/{}", pdf_file));
+                }
             }
             Flash::success(Redirect::to("/"), format!("Paper removed: {}", id))
         }
@@ -358,6 +461,9 @@ async fn run_migrations(rocket: Rocket<Build>) -> Rocket<Build> {
         .await
         .unwrap();
     seed_default_user(&conn).await;
+    if let Err(e) = fs::create_dir_all("static/pdfs") {
+        error_!("cannot create pdf directory: {}", e);
+    }
 
     rocket
 }

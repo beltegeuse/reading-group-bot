@@ -4,3 +4,5 @@
 db.sqlite
 db.sqlite-wal
 db.sqlite-shm
+/static/pdfs/*
+!/static/pdfs/.gitkeep

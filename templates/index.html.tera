@@ -52,19 +52,33 @@
               </div>
 
               <div class="ten columns">
-                <i class="fas fa-book"></i>   <a href="{{paper.0.url}}" >{{ paper.0.title }}</a>{% if paper.0.venue %} (<b>{{paper.0.venue}}</b>){%endif%}
-                {% if cookie_info %}
-                {% if paper.0.user_id == cookie_info.id %}
-                <form class="inline" action="/paper/remove/{{paper.0.id}}" method="post">
-                  <input type="hidden" name="_method" value="put" />
-                    <button class="small" type="submit">
-                      <i class="fas fa-trash-alt"></i>
-                    </button>
-                  </form>
+                <i class="fas fa-book"></i>
+                {% if paper.0.pdf_file %}
+                  <a href="/pdfs/{{paper.0.pdf_file}}" target="_blank">{{ paper.0.title }}</a>
+                  <small><i class="fas fa-file-pdf"></i> PDF</small>
+                  {% if paper.0.url %}
+                    <small> · <a href="{{paper.0.url}}" target="_blank">URL</a></small>
+                  {% endif %}
+                {% elif paper.0.url %}
+                  <a href="{{paper.0.url}}" target="_blank">{{ paper.0.title }}</a>
+                {% else %}
+                  {{ paper.0.title }}
                 {% endif %}
+                {% if paper.0.venue %}<b> ({{paper.0.venue}})</b>{%endif%}
+                
+                {% if cookie_info %}
+                  {% if paper.0.user_id == cookie_info.id %}
+                    <form class="inline" action="/paper/remove/{{paper.0.id}}" method="post">
+                      <input type="hidden" name="_method" value="put" />
+                      <button class="small" type="submit">
+                        <i class="fas fa-trash-alt"></i>
+                      </button>
+                    </form>
+                  {% endif %}
                 {% endif %}
               </div>
           </div>
         {% endfor %}
     </div>
+
 {% endblock content %}

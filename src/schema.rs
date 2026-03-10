@@ -16,6 +16,7 @@ table! {
         user_id -> Integer,
         vote_count -> Integer,
         readed -> Integer,
+        pdf_file -> Nullable<Text>,
     }
 }
 

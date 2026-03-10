@@ -2,21 +2,35 @@
   
 {% block content %}
   {% if cookie_info %}
+    {% if flash %}
     <div class="row">
-      <h4>Add a new paper our pile!</h4>
-      <form action="/paper/add" method="post">
+      <div class="field-{{flash.0}}-msg">
+        {{ flash.1 }}
+      </div>
+    </div>
+    {% endif %}
+    <div class="row">
+      <h4>Add a new paper to our pile!</h4>
+      <form action="/paper/add" method="post" enctype="multipart/form-data">
         <div class="row">
-          <input type="title" placeholder="Paper title..."
+          <input type="text" placeholder="Paper title..."
             name="title" id="title" value="" autofocus
-            class="u-full-width" />
+            class="u-full-width" required />
         </div>
         <div class="row">
-          <input type="url" placeholder="Paper URL..."
-            name="url" id="url" value="" autofocus class="u-full-width" />
+          <label for="url" style="display: block; margin-bottom: 5px;">Paper URL (optional if uploading a PDF):</label>
+          <input type="url" placeholder="Paper URL (optional)..."
+            name="url" id="url" value="" class="u-full-width" />
+        </div>
+        <div class="row">
+          <label for="pdf" style="display: block; margin-bottom: 5px;">Paper PDF (optional if providing a URL):</label>
+          <input type="file" accept="application/pdf,.pdf"
+            name="pdf" id="pdf" class="u-full-width" />
+          <small style="display: block; margin-top: 5px; color: #666;">Provide at least one of URL or PDF. Maximum PDF size: 200 MiB.</small>
         </div>
         <div class="row">
           <input type="text" placeholder="Optional: Venue where paper was published/presented (e.g., SIGGRAPH 2021)"
-            name="venue" id="venue" value="" autofocus class="u-full-width" />
+            name="venue" id="venue" value="" class="u-full-width" />
         </div>
         <div class="row">
           <input type="submit" value="add paper">
@@ -24,6 +38,13 @@
       </form>
     </div>
     {% else %}
+    {% if flash %}
+    <div class="row">
+      <div class="field-{{flash.0}}-msg">
+        {{ flash.1 }}
+      </div>
+    </div>
+    {% endif %}
     <div class="row">
       <h4>Need to login before proposing new papers</h4>
     </div>

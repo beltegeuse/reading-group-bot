@@ -12,7 +12,6 @@ use crate::schema::votes::dsl::votes as all_votes;
 use crate::schema::*;
 
 use crate::DbConn;
-use crate::PaperForm;
 use crate::RegisterForm;
 
 ////////////// Users
@@ -60,6 +59,7 @@ pub struct Paper {
     pub user_id: i32,
     pub vote_count: i32,
     pub readed: i32, // 0 = false, 1 = true
+    pub pdf_file: Option<String>, // Filename of uploaded PDF
 }
 
 impl Paper {
@@ -116,20 +116,24 @@ impl Paper {
             .await
     }
 
-    pub async fn insert(conn: &DbConn, paper: PaperForm, user_id: i32) -> QueryResult<usize> {
+    pub async fn insert(
+        conn: &DbConn,
+        title: String,
+        url: Option<String>,
+        venue: Option<String>,
+        pdf_file: Option<String>,
+        user_id: i32,
+    ) -> QueryResult<usize> {
         conn.run(move |c| {
             let p = Paper {
                 id: None,
-                title: paper.title,
-                url: paper.url,
-                venue: if paper.venue == "" {
-                    None
-                } else {
-                    Some(paper.venue)
-                },
+                title,
+                url: url.unwrap_or_default(),
+                venue,
                 user_id,
                 vote_count: 0,
                 readed: 0, // false
+                pdf_file,
             };
             diesel::insert_into(papers::table).values(&p).execute(c)
         })
@@ -144,6 +148,7 @@ impl Paper {
         })
         .await
     }
+
 }
 
 #[derive(Queryable, Insertable, Debug, Serialize)]
