@@ -18,7 +18,7 @@ pub async fn generate_thumbnail(pdf_path: &str, output_path: &str) -> Result<(),
     cmd.arg("convert")
         .arg(&pdf_with_page)
         .arg("-density")
-        .arg("150")  // DPI for rendering
+        .arg("200")  // DPI for rendering
         .arg("-background")
         .arg("white")  // White background
         .arg("-alpha")
