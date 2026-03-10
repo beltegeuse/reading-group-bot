@@ -29,6 +29,36 @@
 
       <div id="navbarMenu" class="navbar-menu">
         <div class="navbar-start">
+          <a class="navbar-item" href="/">
+            <span class="icon">
+              <i class="fas fa-list"></i>
+            </span>
+            <span>Papers</span>
+          </a>
+
+          <a class="navbar-item" href="/paper/ranking">
+            <span class="icon">
+              <i class="fas fa-trophy"></i>
+            </span>
+            <span>Ranking</span>
+          </a>
+
+          <a class="navbar-item" href="/paper/discussed">
+            <span class="icon">
+              <i class="fas fa-comments"></i>
+            </span>
+            <span>Discussed</span>
+          </a>
+
+          {% if cookie_info and cookie_info.is_admin %}
+          <a class="navbar-item" href="/paper/admin">
+            <span class="icon">
+              <i class="fas fa-user-shield"></i>
+            </span>
+            <span>Admin</span>
+          </a>
+          {% endif %}
+
           <a class="navbar-item" href="/paper/add">
             <span class="icon">
               <i class="fas fa-plus-circle"></i>

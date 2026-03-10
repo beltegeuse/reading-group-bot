@@ -1,0 +1,44 @@
+{% extends "base" %}
+
+{% block content %}
+  {% if flash %}
+  <div class="notification is-{{flash.0}}">
+    <button class="delete"></button>
+    {{ flash.1 }}
+  </div>
+  {% endif %}
+
+  <h1 class="title">Discussed Papers</h1>
+  <p class="subtitle">Papers already covered by the reading group.</p>
+
+  {% if papers | length == 0 %}
+    <article class="message is-warning">
+      <div class="message-body">No discussed papers yet.</div>
+    </article>
+  {% endif %}
+
+  {% for paper in papers %}
+    <div class="box mb-4">
+      <p class="mb-2">
+        {% if paper.pdf_file %}
+          <a href="/pdfs/{{paper.pdf_file}}" target="_blank"><strong>{{ paper.title }}</strong></a>
+        {% elif paper.url %}
+          <a href="{{paper.url}}" target="_blank"><strong>{{ paper.title }}</strong></a>
+        {% else %}
+          <strong>{{ paper.title }}</strong>
+        {% endif %}
+      </p>
+      <p class="mb-2">
+        {% if paper.venue %}
+          <span class="tag">{{ paper.venue }}</span>
+        {% endif %}
+        {% if paper.publication_year %}
+          <span class="tag is-info">{{ paper.publication_year }}</span>
+        {% endif %}
+        <span class="tag is-success is-light">Discussed {{ paper.discussed_at }}</span>
+        <span class="tag is-light">Added {{ paper.added_at }}</span>
+        <span class="tag is-link is-light">Votes {{ paper.vote_count }}</span>
+      </p>
+    </div>
+  {% endfor %}
+{% endblock content %}

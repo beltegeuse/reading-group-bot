@@ -1,0 +1,60 @@
+{% extends "base" %}
+
+{% block content %}
+  {% if flash %}
+  <div class="notification is-{{flash.0}}">
+    <button class="delete"></button>
+    {{ flash.1 }}
+  </div>
+  {% endif %}
+
+  <h1 class="title">Paper Ranking</h1>
+  <p class="subtitle">Current ranking based on Up votes.</p>
+
+  {% if papers | length == 0 %}
+    <article class="message is-warning">
+      <div class="message-body">No papers are currently available.</div>
+    </article>
+  {% else %}
+    <div class="table-container">
+      <table class="table is-fullwidth is-striped is-hoverable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Paper</th>
+            <th>Votes</th>
+            <th>Added</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for paper in papers %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td>
+                {% if paper.pdf_file %}
+                  <a href="/pdfs/{{paper.pdf_file}}" target="_blank"><strong>{{ paper.title }}</strong></a>
+                {% elif paper.url %}
+                  <a href="{{paper.url}}" target="_blank"><strong>{{ paper.title }}</strong></a>
+                {% else %}
+                  <strong>{{ paper.title }}</strong>
+                {% endif %}
+                <div>
+                  {% if paper.venue %}
+                    <span class="tag">{{ paper.venue }}</span>
+                  {% endif %}
+                  {% if paper.publication_year %}
+                    <span class="tag is-info">{{ paper.publication_year }}</span>
+                  {% endif %}
+                </div>
+              </td>
+              <td>
+                <span class="tag is-link is-light">{{ paper.vote_count }}</span>
+              </td>
+              <td>{{ paper.added_at }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+{% endblock content %}

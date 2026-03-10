@@ -1,0 +1,57 @@
+{% extends "base" %}
+
+{% block content %}
+  {% if flash %}
+  <div class="notification is-{{flash.0}}">
+    <button class="delete"></button>
+    {{ flash.1 }}
+  </div>
+  {% endif %}
+
+  <h1 class="title">Admin · Mark Discussed</h1>
+  <p class="subtitle">Only admin users can mark papers as discussed.</p>
+
+  {% if papers | length == 0 %}
+    <article class="message is-success">
+      <div class="message-body">No active papers to mark as discussed.</div>
+    </article>
+  {% endif %}
+
+  {% for paper in papers %}
+    <div class="box mb-4">
+      <div class="columns is-vcentered is-multiline">
+        <div class="column">
+          <p>
+            {% if paper.pdf_file %}
+              <a href="/pdfs/{{paper.pdf_file}}" target="_blank"><strong>{{ paper.title }}</strong></a>
+            {% elif paper.url %}
+              <a href="{{paper.url}}" target="_blank"><strong>{{ paper.title }}</strong></a>
+            {% else %}
+              <strong>{{ paper.title }}</strong>
+            {% endif %}
+          </p>
+          <p class="mt-2">
+            {% if paper.venue %}
+              <span class="tag">{{ paper.venue }}</span>
+            {% endif %}
+            {% if paper.publication_year %}
+              <span class="tag is-info">{{ paper.publication_year }}</span>
+            {% endif %}
+            <span class="tag is-link is-light">Votes {{ paper.vote_count }}</span>
+          </p>
+        </div>
+        <div class="column is-narrow">
+          <form action="/paper/discuss/{{paper.id}}" method="post" class="field is-grouped">
+            <input type="hidden" name="_method" value="put" />
+            <div class="control">
+              <input class="input" type="date" name="discussed_date" required>
+            </div>
+            <div class="control">
+              <button class="button is-primary" type="submit">Mark Discussed</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+{% endblock content %}

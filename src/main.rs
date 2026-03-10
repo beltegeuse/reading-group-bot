@@ -61,14 +61,22 @@ pub struct DbConn(diesel::SqliteConnection);
 pub struct CookieInfo {
     id: i32,
     name: String,
+    is_admin: bool,
 }
 fn read_cookie(jar: &CookieJar<'_>) -> Option<CookieInfo> {
     let username = jar.get_private("name");
     let id = jar.get_private("user_id");
+    let is_admin = jar
+        .get_private("is_admin")
+        .and_then(|cookie| cookie.value().parse::<i32>().ok())
+        .map(|value| value == 1)
+        .unwrap_or(false);
+
     match (username, id) {
         (Some(username), Some(id)) => Some(CookieInfo {
             name: username.value().to_string(),
             id: id.value().parse().unwrap(),
+            is_admin,
         }),
         _ => None,
     }
@@ -79,7 +87,17 @@ fn read_cookie(jar: &CookieJar<'_>) -> Option<CookieInfo> {
 #[serde(crate = "rocket::serde")]
 struct Context {
     flash: Option<(String, String)>,
-    papers: Vec<(Paper, bool)>,
+    papers: Vec<(Paper, i32)>,
+    cookie_info: Option<CookieInfo>,
+    search_query: String,
+    only_not_voted: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(crate = "rocket::serde")]
+struct PaperListContext {
+    flash: Option<(String, String)>,
+    papers: Vec<Paper>,
     cookie_info: Option<CookieInfo>,
 }
 
@@ -92,6 +110,21 @@ struct ContextNull {}
 struct PaperAddContext {
     flash: Option<(String, String)>,
     cookie_info: Option<CookieInfo>,
+}
+
+fn paper_matches_search(paper: &Paper, query: &str) -> bool {
+    let query = query.to_lowercase();
+    paper.title.to_lowercase().contains(&query)
+        || paper.url.to_lowercase().contains(&query)
+        || paper
+            .venue
+            .as_ref()
+            .map(|venue| venue.to_lowercase().contains(&query))
+            .unwrap_or(false)
+        || paper
+            .publication_year
+            .map(|year| year.to_string().contains(&query))
+            .unwrap_or(false)
 }
 
 const ALLOWED_VENUES: &[&str] = &[
@@ -115,30 +148,125 @@ const ALLOWED_VENUES: &[&str] = &[
 ];
 
 // Forward flash message if we have one
-#[get("/")]
-async fn index(jar: &CookieJar<'_>, flash: Option<FlashMessage<'_>>, conn: DbConn) -> Template {
+#[get("/?<q>&<only_not_voted>")]
+async fn index(
+    jar: &CookieJar<'_>,
+    flash: Option<FlashMessage<'_>>,
+    q: Option<String>,
+    only_not_voted: Option<i32>,
+    conn: DbConn,
+) -> Template {
     // Get context informations
     let cookie_info = read_cookie(jar);
     let flash = flash.map(FlashMessage::into_inner);
+    let search_query = q.unwrap_or_default().trim().to_string();
+    let only_not_voted = only_not_voted.unwrap_or(0) == 1;
     let user_id = match &cookie_info {
         None => None,
         Some(i) => Some(i.id),
     };
 
     // Build context on paper unread
-    let context = match Paper::all_unread(&conn, user_id).await {
-        Some(papers) => Context {
-            flash,
-            papers: dbg!(papers),
-            cookie_info,
-        },
+    let context = match Paper::all_active_with_vote_status(&conn, user_id).await {
+        Some(mut papers) => {
+            if !search_query.is_empty() {
+                papers.retain(|(paper, _)| paper_matches_search(paper, &search_query));
+            }
+            if only_not_voted {
+                papers.retain(|(_, vote_state)| *vote_state == 0);
+            }
+
+            Context {
+                flash,
+                papers,
+                cookie_info,
+                search_query,
+                only_not_voted,
+            }
+        }
         None => Context {
-            flash: Some(("error".into(), "Fail to access database.".into())),
+            flash,
             papers: vec![],
             cookie_info,
+            search_query,
+            only_not_voted,
         },
     };
     Template::render("index", &context)
+}
+
+#[get("/ranking")]
+async fn paper_ranking(
+    jar: &CookieJar<'_>,
+    flash: Option<FlashMessage<'_>>,
+    conn: DbConn,
+) -> Template {
+    let cookie_info = read_cookie(jar);
+    let flash = flash.map(FlashMessage::into_inner);
+
+    let papers = match Paper::all_active(&conn).await {
+        Ok(papers) => papers,
+        Err(_) => vec![],
+    };
+
+    let context = PaperListContext {
+        flash,
+        papers,
+        cookie_info,
+    };
+
+    Template::render("ranking", &context)
+}
+
+#[get("/discussed")]
+async fn paper_discussed(
+    jar: &CookieJar<'_>,
+    flash: Option<FlashMessage<'_>>,
+    conn: DbConn,
+) -> Template {
+    let cookie_info = read_cookie(jar);
+    let flash = flash.map(FlashMessage::into_inner);
+
+    let papers = match Paper::all_discussed(&conn).await {
+        Ok(papers) => papers,
+        Err(_) => vec![],
+    };
+
+    let context = PaperListContext {
+        flash,
+        papers,
+        cookie_info,
+    };
+
+    Template::render("discussed", &context)
+}
+
+#[get("/admin")]
+async fn paper_admin_discussed(
+    jar: &CookieJar<'_>,
+    flash: Option<FlashMessage<'_>>,
+    conn: DbConn,
+) -> Result<Template, Flash<Redirect>> {
+    let cookie_info = read_cookie(jar);
+    if cookie_info.as_ref().map(|user| user.is_admin).unwrap_or(false) == false {
+        return Err(Flash::error(
+            Redirect::to("/"),
+            "Only admin users can access the discussed management page.",
+        ));
+    }
+
+    let flash = flash.map(FlashMessage::into_inner);
+    let papers = match Paper::all_active(&conn).await {
+        Ok(papers) => papers,
+        Err(_) => vec![],
+    };
+    let context = PaperListContext {
+        flash,
+        papers,
+        cookie_info,
+    };
+
+    Ok(Template::render("admin_discussed", &context))
 }
 
 #[get("/add")]
@@ -147,6 +275,11 @@ async fn paper_add(jar: &CookieJar<'_>, flash: Option<FlashMessage<'_>>) -> Temp
     let flash = flash.map(FlashMessage::into_inner);
     let context = PaperAddContext { flash, cookie_info };
     Template::render("paper", &context)
+}
+
+#[derive(Debug, FromForm)]
+pub struct DiscussForm {
+    pub discussed_date: String,
 }
 
 #[derive(Debug, FromForm)]
@@ -362,6 +495,40 @@ async fn paper_add_post(
     }
 }
 
+#[put("/discuss/<id>", data = "<discuss_form>")]
+async fn paper_mark_discussed(
+    jar: &CookieJar<'_>,
+    conn: DbConn,
+    id: i32,
+    discuss_form: Form<DiscussForm>,
+) -> Flash<Redirect> {
+    let cookie_info = read_cookie(jar);
+    if cookie_info.as_ref().map(|user| user.is_admin).unwrap_or(false) == false {
+        return Flash::error(
+            Redirect::to("/"),
+            "Only admin users can mark a paper as discussed.",
+        );
+    }
+
+    let discussed_date = discuss_form.into_inner().discussed_date.trim().to_string();
+    if discussed_date.is_empty() {
+        return Flash::error(
+            Redirect::to("/paper/admin"),
+            "Please provide the date when the paper was discussed.",
+        );
+    }
+
+    match Paper::mark_discussed(&conn, id, discussed_date).await {
+        Ok(updated_rows) if updated_rows > 0 => {
+            Flash::success(Redirect::to("/paper/admin"), "Paper marked as discussed.")
+        }
+        _ => Flash::error(
+            Redirect::to("/paper/admin"),
+            "Could not mark paper as discussed.",
+        ),
+    }
+}
+
 #[put("/remove/<id>")]
 async fn paper_remove(jar: &CookieJar<'_>, conn: DbConn, id: i32) -> Flash<Redirect> {
     let cookie_info = read_cookie(jar);
@@ -383,8 +550,7 @@ async fn paper_remove(jar: &CookieJar<'_>, conn: DbConn, id: i32) -> Flash<Redir
                 let pdf_file = paper.pdf_file.clone();
                 let thumbnail = paper.thumbnail.clone();
                 // We allow to remove it
-                // 1) Down vote (in case)
-                let _ = Vote::down(&conn, cookie_info.id, id).await;
+                let _ = Vote::remove_for_paper(&conn, id).await;
                 let _ = Paper::remove(&conn, id).await;
                 if let Some(pdf_file) = pdf_file {
                     let _ = fs::remove_file(format!("static/pdfs/{}", pdf_file));
@@ -407,7 +573,11 @@ async fn paper_vote_up(jar: &CookieJar<'_>, conn: DbConn, id: i32) -> Flash<Redi
     let cookie_info = cookie_info.unwrap();
 
     let res = Vote::up(&conn, cookie_info.id, id).await;
-    Flash::success(Redirect::to("/"), format!("Up vote status: {}", res))
+    if res {
+        Flash::success(Redirect::to("/"), "Marked as interested.")
+    } else {
+        Flash::error(Redirect::to("/"), "You already marked this paper as interested.")
+    }
 }
 #[put("/down/<id>")]
 async fn paper_vote_down(jar: &CookieJar<'_>, conn: DbConn, id: i32) -> Flash<Redirect> {
@@ -418,7 +588,11 @@ async fn paper_vote_down(jar: &CookieJar<'_>, conn: DbConn, id: i32) -> Flash<Re
     let cookie_info = cookie_info.unwrap();
 
     let res = Vote::down(&conn, cookie_info.id, id).await;
-    Flash::success(Redirect::to("/"), format!("Down vote status: {}", res))
+    if res {
+        Flash::success(Redirect::to("/"), "Marked as ignored.")
+    } else {
+        Flash::error(Redirect::to("/"), "You already marked this paper as ignored.")
+    }
 }
 
 #[derive(FromForm)]
@@ -461,7 +635,8 @@ async fn user_login_post(
                 if l.name == login.name {
                     if l.password_hash == pwd_hash {
                         jar.add_private(Cookie::new("user_id", l.id.unwrap().to_string()));
-                        jar.add_private(Cookie::new("name", l.name));
+                        jar.add_private(Cookie::new("name", l.name.clone()));
+                        jar.add_private(Cookie::new("is_admin", l.is_admin.to_string()));
                         return Flash::success(Redirect::to("/"), "Successfully logged.");
                     } else {
                         return Flash::error(Redirect::to("/"), "Wrong password.");
@@ -478,6 +653,7 @@ async fn user_login_post(
 async fn user_logout(jar: &CookieJar<'_>) -> Flash<Redirect> {
     jar.remove_private(Cookie::from("user_id"));
     jar.remove_private(Cookie::from("name"));
+    jar.remove_private(Cookie::from("is_admin"));
     Flash::success(Redirect::to("/"), "User successfully logout.")
 }
 
@@ -572,7 +748,11 @@ fn rocket() -> _ {
                 paper_add_post,
                 paper_remove,
                 paper_vote_up,
-                paper_vote_down
+                paper_vote_down,
+                paper_ranking,
+                paper_discussed,
+                paper_admin_discussed,
+                paper_mark_discussed
             ],
         ) // Managing papers
         .mount(

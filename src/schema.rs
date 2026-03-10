@@ -4,6 +4,7 @@ table! {
         name -> Text,
         email -> Text,
         password_hash -> Text,
+        is_admin -> Integer,
     }
 }
 
@@ -19,6 +20,8 @@ table! {
         readed -> Integer,
         pdf_file -> Nullable<Text>,
         thumbnail -> Nullable<Text>,
+        added_at -> Text,
+        discussed_at -> Nullable<Text>,
     }
 }
 
@@ -27,6 +30,7 @@ table! {
         id -> Nullable<Integer>,
         paper_id -> Integer,
         user_id -> Integer,
+        value -> Integer,
     }
 }
 

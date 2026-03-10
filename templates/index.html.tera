@@ -1,134 +1,176 @@
 {% extends "base" %}
   
 {% block content %}
-    {% if flash %}
-    <div class="notification is-{{flash.0}}">
-      <button class="delete"></button>
-      {{ flash.1 }}
-    </div>
+  {% if flash %}
+  <div class="notification is-{{flash.0}}">
+    <button class="delete"></button>
+    {{ flash.1 }}
+  </div>
+  {% endif %}
+
+  <div class="content mb-5">
+    {% if cookie_info %}
+      <p>Please propose new papers and use Up if you are interested or Ignore if you are not.</p>
+    {% else %}
+      <p>Please register and login to vote and propose new papers.</p>
     {% endif %}
+  </div>
 
-    <div class="content mb-5">
-      {% if cookie_info %}
-        <p>Please propose new papers and upvote papers that you want to read!</p>
-      {% else %}
-        <p>Please register and login to upvote and propose new papers!</p>
-      {% endif %}
+  <div class="box mb-4">
+    <form action="/" method="get">
+      <div class="field has-addons">
+        <div class="control is-expanded">
+          <input class="input" type="text" name="q" value="{{ search_query }}" placeholder="Search papers by title, venue, or year">
+        </div>
+        <div class="control">
+          <button class="button is-link" type="submit">Search</button>
+        </div>
+        {% if search_query or only_not_voted %}
+        <div class="control">
+          <a class="button is-light" href="/">Clear</a>
+        </div>
+        {% endif %}
+      </div>
+      <div class="field mt-2">
+        <label class="checkbox">
+          <input id="only-not-voted-toggle" type="checkbox" name="only_not_voted" value="1" {% if only_not_voted %}checked{% endif %}>
+          Only show papers not voted yet
+        </label>
+      </div>
+    </form>
+  </div>
+
+  <article id="dynamic-no-results" class="message is-warning is-hidden mb-4">
+    <div class="message-body">
+      No papers match the current filters.
     </div>
+  </article>
 
-    {% for paper in papers %}
-      <div class="box mb-4">
-        <div class="columns is-multiline">
-          <div class="column is-narrow">
-            {% if paper.0.thumbnail %}
-              <figure class="image is-200x280">
-                <img src="/thumbnails/{{paper.0.thumbnail}}" alt="{{paper.0.title}}" style="object-fit: cover; width: 100%; height: 100%;">
-              </figure>
-            {% else %}
-              <figure class="image is-200x280" style="background-color: #f0f0f0; display: flex; align-items: center; justify-content: center;">
-                <span class="icon is-large">
-                  <i class="fas fa-4x fa-file-pdf" style="color: #ccc;"></i>
+  {% if papers | length == 0 %}
+    <article class="message is-warning">
+      <div class="message-body">
+        No papers found{% if search_query %} for "{{ search_query }}"{% endif %}.
+      </div>
+    </article>
+  {% endif %}
+
+  {% for paper in papers %}
+    <div class="box mb-4 paper-card" data-vote-state="{{ paper.1 }}">
+      <div class="columns is-multiline">
+        <div class="column is-narrow">
+          {% if paper.0.thumbnail %}
+            <figure class="image is-200x280">
+              <img src="/thumbnails/{{paper.0.thumbnail}}" alt="{{paper.0.title}}" style="object-fit: cover; width: 100%; height: 100%;">
+            </figure>
+          {% else %}
+            <figure class="image is-200x280" style="display: flex; align-items: center; justify-content: center;">
+              <span class="icon is-large">
+                <i class="fas fa-4x fa-file-pdf"></i>
+              </span>
+            </figure>
+          {% endif %}
+        </div>
+
+        <div class="column">
+          <div class="content">
+            <p class="mb-2">
+              <span class="icon-text">
+                <span class="icon">
+                  <i class="fas fa-book"></i>
                 </span>
-              </figure>
-            {% endif %}
-          </div>
-
-          <div class="column">
-            <div class="content">
-              <p class="mb-2">
-                <span class="icon-text">
-                  <span class="icon">
-                    <i class="fas fa-book"></i>
-                  </span>
-                  <span>
-                    {% if paper.0.pdf_file %}
-                      <a href="/pdfs/{{paper.0.pdf_file}}" target="_blank"><strong>{{ paper.0.title }}</strong></a>
-                      <span class="tag is-warning is-light ml-2">
-                        <span class="icon is-small">
-                          <i class="fas fa-file-pdf"></i>
-                        </span>
-                        <span>PDF</span>
+                <span>
+                  {% if paper.0.pdf_file %}
+                    <a href="/pdfs/{{paper.0.pdf_file}}" target="_blank"><strong>{{ paper.0.title }}</strong></a>
+                    <span class="tag is-warning is-light ml-2">
+                      <span class="icon is-small">
+                        <i class="fas fa-file-pdf"></i>
                       </span>
-                      {% if paper.0.url %}
-                        <a href="{{paper.0.url}}" target="_blank" class="ml-2">Project page</a>
-                      {% endif %}
-                    {% elif paper.0.url %}
-                      <a href="{{paper.0.url}}" target="_blank"><strong>{{ paper.0.title }}</strong></a>
-                    {% else %}
-                      <strong>{{ paper.0.title }}</strong>
+                      <span>PDF</span>
+                    </span>
+                    {% if paper.0.url %}
+                      <a href="{{paper.0.url}}" target="_blank" class="ml-2">Project page</a>
                     {% endif %}
-                  </span>
+                  {% elif paper.0.url %}
+                    <a href="{{paper.0.url}}" target="_blank"><strong>{{ paper.0.title }}</strong></a>
+                  {% else %}
+                    <strong>{{ paper.0.title }}</strong>
+                  {% endif %}
                 </span>
-              </p>
-              {% if paper.0.venue or paper.0.publication_year %}
-                <p class="mb-2">
-                  <span class="tags has-addons">
-                    {% if paper.0.venue %}
-                      <span class="tag">{{ paper.0.venue }}</span>
-                    {% endif %}
-                    {% if paper.0.publication_year %}
-                      <span class="tag is-info">{{ paper.0.publication_year }}</span>
-                    {% endif %}
-                  </span>
-                </p>
-              {% endif %}
-              
-              {% if cookie_info %}
-                <div class="field is-grouped">
-                  <div class="control">
-                    {% if paper.1 %}
-                      <form action="/paper/down/{{paper.0.id}}" method="post" style="display: inline;">
-                        <input type="hidden" name="_method" value="put" />
-                        <button class="button is-danger is-outlined is-small" type="submit">
-                          <span class="icon is-small">
-                            <i class="fas fa-angle-down"></i>
-                          </span>
-                          <span>{{ paper.0.vote_count }}</span>
-                        </button>
-                      </form>
-                    {% else %}
-                      <form action="/paper/up/{{paper.0.id}}" method="post" style="display: inline;">
-                        <input type="hidden" name="_method" value="put" />
-                        <button class="button is-success is-outlined is-small" type="submit">
-                          <span class="icon is-small">
-                            <i class="fas fa-angle-up"></i>
-                          </span>
-                          <span>{{ paper.0.vote_count }}</span>
-                        </button>
-                      </form>
-                    {% endif %}
-                  </div>
+              </span>
+            </p>
+            <p class="mb-2">
+              <span class="tags has-addons">
+                {% if paper.0.venue %}
+                  <span class="tag">{{ paper.0.venue }}</span>
+                {% endif %}
+                {% if paper.0.publication_year %}
+                  <span class="tag is-info">{{ paper.0.publication_year }}</span>
+                {% endif %}
+                <span class="tag is-light">Added {{ paper.0.added_at }}</span>
+                <span class="tag is-link is-light">Votes {{ paper.0.vote_count }}</span>
+              </span>
+            </p>
 
-                  {% if paper.0.user_id == cookie_info.id %}
-                    <div class="control">
-                      <form action="/paper/remove/{{paper.0.id}}" method="post" style="display: inline;">
-                        <input type="hidden" name="_method" value="put" />
-                        <button class="button is-small is-danger is-outlined" type="submit">
-                          <span class="icon is-small">
-                            <i class="fas fa-trash-alt"></i>
-                          </span>
-                          <span>Remove</span>
-                        </button>
-                      </form>
-                    </div>
+            {% if cookie_info %}
+              <div class="field is-grouped">
+                <div class="control">
+                  <form action="/paper/up/{{paper.0.id}}" method="post" style="display: inline;">
+                    <input type="hidden" name="_method" value="put" />
+                    <button class="button is-success is-small {% if paper.1 != 1 %}is-outlined{% endif %}" type="submit" {% if paper.1 == 1 %}disabled{% endif %}>
+                      Up (Interested)
+                    </button>
+                  </form>
+                </div>
+
+                <div class="control">
+                  <form action="/paper/down/{{paper.0.id}}" method="post" style="display: inline;">
+                    <input type="hidden" name="_method" value="put" />
+                    <button class="button is-danger is-small {% if paper.1 == -1 %}is-outlined{% else %}is-light{% endif %}" type="submit" {% if paper.1 == -1 %}disabled{% endif %}>
+                      Ignore
+                    </button>
+                  </form>
+                </div>
+
+                <div class="control">
+                  {% if paper.1 == 1 %}
+                    <span class="tag is-success is-light">You marked this paper as interested</span>
+                  {% elif paper.1 == -1 %}
+                    <span class="tag is-danger is-light">You marked this paper as ignored</span>
+                  {% else %}
+                    <span class="tag is-light">You have not voted yet</span>
                   {% endif %}
                 </div>
-              {% else %}
-                <div class="field">
+
+                {% if paper.0.user_id == cookie_info.id %}
                   <div class="control">
-                    <div class="button is-static is-small">
-                      <span class="icon is-small">
-                        <i class="fas fa-thumbs-up"></i>
-                      </span>
-                      <span>{{ paper.0.vote_count }}</span>
-                    </div>
+                    <form action="/paper/remove/{{paper.0.id}}" method="post" style="display: inline;">
+                      <input type="hidden" name="_method" value="put" />
+                      <button class="button is-small is-danger is-outlined" type="submit">
+                        <span class="icon is-small">
+                          <i class="fas fa-trash-alt"></i>
+                        </span>
+                        <span>Remove</span>
+                      </button>
+                    </form>
+                  </div>
+                {% endif %}
+              </div>
+            {% else %}
+              <div class="field">
+                <div class="control">
+                  <div class="button is-static is-small">
+                    <span class="icon is-small">
+                      <i class="fas fa-thumbs-up"></i>
+                    </span>
+                    <span>{{ paper.0.vote_count }}</span>
                   </div>
                 </div>
-              {% endif %}
-            </div>
+              </div>
+            {% endif %}
           </div>
         </div>
       </div>
-    {% endfor %}
+    </div>
+  {% endfor %}
 
 {% endblock content %}

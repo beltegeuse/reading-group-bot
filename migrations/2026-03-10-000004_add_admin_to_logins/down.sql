@@ -1,0 +1,1 @@
+ALTER TABLE logins DROP COLUMN is_admin;

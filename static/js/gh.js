@@ -37,3 +37,32 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 });
+
+// Dynamic filter for "only not voted" on index page
+document.addEventListener('DOMContentLoaded', () => {
+  const notVotedToggle = document.getElementById('only-not-voted-toggle');
+  const paperCards = Array.from(document.querySelectorAll('.paper-card'));
+  const dynamicNoResults = document.getElementById('dynamic-no-results');
+
+  if (!notVotedToggle || paperCards.length === 0) {
+    return;
+  }
+
+  const applyNotVotedFilter = () => {
+    const onlyNotVoted = notVotedToggle.checked;
+
+    paperCards.forEach((card) => {
+      const voteState = Number(card.dataset.voteState || '0');
+      const visible = !onlyNotVoted || voteState === 0;
+      card.style.display = visible ? '' : 'none';
+    });
+
+    if (dynamicNoResults) {
+      const visibleCardsCount = paperCards.filter((card) => card.style.display !== 'none').length;
+      dynamicNoResults.classList.toggle('is-hidden', visibleCardsCount > 0);
+    }
+  };
+
+  notVotedToggle.addEventListener('change', applyNotVotedFilter);
+  applyNotVotedFilter();
+});
