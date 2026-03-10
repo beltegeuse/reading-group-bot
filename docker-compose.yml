@@ -1,0 +1,32 @@
+services:
+  reading-group-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: reading-group-bot
+    ports:
+      - "3001:3001"
+    volumes:
+      - db_data:/app/data
+      - pdfs:/app/static/pdfs
+      - thumbnails:/app/static/thumbnails
+    environment:
+      - ROCKET_ADDRESS=0.0.0.0
+      - ROCKET_PROFILE=release
+      - ROCKET_PORT=3001
+      - ROCKET_DATABASES={sqlite_database={url="/app/data/db.sqlite"}}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3001/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  db_data:
+    driver: local
+  pdfs:
+    driver: local
+  thumbnails:
+    driver: local

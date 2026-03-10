@@ -1,0 +1,6 @@
+# Docker environment configuration for development/production
+ROCKET_ADDRESS=0.0.0.0
+ROCKET_PROFILE=release
+ROCKET_PORT=3001
+ROCKET_LOG_LEVEL=normal
+ROCKET_DATABASES={sqlite_database={url="/app/data/db.sqlite"}}
