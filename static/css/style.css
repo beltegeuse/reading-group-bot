@@ -1,41 +1,116 @@
-.field-error {
-  border: 1px solid #ff0000 !important;
+/* Bulma customizations and extensions */
+
+/* Notification close button functionality */
+.notification .delete {
+  cursor: pointer;
 }
 
-.field-error-msg {
-  color: #ff0000;
-  display: block;
-  margin: -10px 0 10px 0;
+/* Spacing utilities */
+.mb-2 {
+  margin-bottom: 0.5rem;
 }
 
-.field-success {
-  border: 1px solid #5AB953 !important;
+.mb-4 {
+  margin-bottom: 1.5rem;
 }
 
-.field-success-msg {
-  color: #5AB953;
-  display: block;
-  margin: -10px 0 10px 0;
+.mb-5 {
+  margin-bottom: 3rem;
 }
 
-.vote {
+.ml-2 {
+  margin-left: 0.5rem;
+}
+
+/* File input styling */
+.file-input {
+  display: none;
+}
+
+.file-label {
+  cursor: pointer;
+}
+
+/* Form enhancements */
+input.input:focus,
+textarea.textarea:focus,
+select.select:focus {
+  border-color: #3273dc;
+  box-shadow: 0 0 0 0.125em rgba(50, 115, 220, 0.25);
+}
+
+/* Tag styling for paper metadata */
+.tags .tag {
+  margin-bottom: 0.25rem;
+}
+
+/* Icon text alignment */
+.icon-text {
   display: flex;
-  flex-direction: column;
-  text-align: center;
-  font-size: 16px;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.number {
-  display: inline-block;
-  text-align: center;
+/* Thumbnail styling */
+.image.is-200x280 {
+  width: 200px;
+  height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
-.vote-up {
-  color: #5AB953;
+.image.is-200x280 img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-html {
-  font-size: 14px;
+/* Responsive improvements */
+@media screen and (max-width: 768px) {
+  .box {
+    padding: 1rem;
+  }
+
+  .columns {
+    margin-left: -0.75rem;
+    margin-right: -0.75rem;
+  }
+
+  .column {
+    padding: 0.75rem;
+  }
+
+  .image.is-200x280 {
+    width: 150px;
+    height: 210px;
+  }
 }
 
-  
+/* Button group spacing */
+.field.is-grouped {
+  margin-top: 1rem;
+}
+
+.button {
+  font-weight: 500;
+}
+
+.button.is-small {
+  font-size: 0.75rem;
+}
+
+/* Paper list styling */
+.box {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+/* Message boxes for auth forms */
+.message {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+

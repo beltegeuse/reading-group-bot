@@ -28,6 +28,7 @@ use rocket_dyn_templates::Template;
 pub mod model;
 pub mod schema;
 pub mod user;
+pub mod pdf_utils;
 
 #[database("sqlite_database")]
 pub struct DbConn(diesel::SqliteConnection);
@@ -298,6 +299,14 @@ async fn paper_add_post(
         );
     }
 
+    if let Err(e) = fs::create_dir_all("static/thumbnails") {
+        error_!("create thumbnail directory error: {}", e);
+        return Flash::error(
+            Redirect::to("/paper/add"),
+            "Could not prepare thumbnail storage.",
+        );
+    }
+
     let filename = format!("{}.pdf", Uuid::new_v4());
     let filepath = format!("static/pdfs/{}", filename);
     if let Err(e) = pdf.move_copy_to(&filepath).await {
@@ -309,6 +318,25 @@ async fn paper_add_post(
     }
     let pdf_file = Some(filename);
 
+    // Generate thumbnail
+    let thumbnail = if pdf_file.is_some() {
+        let thumbnail_filename = format!("{}.png", Uuid::new_v4());
+        let thumbnail_filepath = format!("static/thumbnails/{}", thumbnail_filename);
+        
+        match pdf_utils::generate_thumbnail(&filepath, &thumbnail_filepath).await {
+            Ok(_) => {
+                info_!("Thumbnail generated: {}", thumbnail_filename);
+                Some(thumbnail_filename)
+            }
+            Err(e) => {
+                warn_!("Failed to generate thumbnail: {}", e);
+                None
+            }
+        }
+    } else {
+        None
+    };
+
     if let Err(e) = Paper::insert(
         &conn,
         title,
@@ -316,6 +344,7 @@ async fn paper_add_post(
         venue,
         publication_year,
         pdf_file.clone(),
+        thumbnail,
         cookie_info.id,
     )
     .await
@@ -352,12 +381,16 @@ async fn paper_remove(jar: &CookieJar<'_>, conn: DbConn, id: i32) -> Flash<Redir
         Ok(paper) => {
             if paper.user_id == cookie_info.id {
                 let pdf_file = paper.pdf_file.clone();
+                let thumbnail = paper.thumbnail.clone();
                 // We allow to remove it
                 // 1) Down vote (in case)
                 let _ = Vote::down(&conn, cookie_info.id, id).await;
                 let _ = Paper::remove(&conn, id).await;
                 if let Some(pdf_file) = pdf_file {
                     let _ = fs::remove_file(format!("static/pdfs/{}", pdf_file));
+                }
+                if let Some(thumbnail) = thumbnail {
+                    let _ = fs::remove_file(format!("static/thumbnails/{}", thumbnail));
                 }
             }
             Flash::success(Redirect::to("/"), format!("Paper removed: {}", id))
@@ -516,6 +549,9 @@ async fn run_migrations(rocket: Rocket<Build>) -> Rocket<Build> {
     seed_default_user(&conn).await;
     if let Err(e) = fs::create_dir_all("static/pdfs") {
         error_!("cannot create pdf directory: {}", e);
+    }
+    if let Err(e) = fs::create_dir_all("static/thumbnails") {
+        error_!("cannot create thumbnails directory: {}", e);
     }
 
     rocket

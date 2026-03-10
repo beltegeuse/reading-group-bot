@@ -1,24 +1,42 @@
 {% extends "base" %}
   
 {% block content %}
-<div class="row">
-<h4>Login</h4>
+<div class="box" style="max-width: 400px; margin: 0 auto;">
+  <h2 class="title">Log In</h2>
 
-<form action="login" method="post">
-     <div class="row">
-        <label for="name">Your username</label> 
-        <input type="text" name="name" id="name" value="" autofocus
-        class="u-full-width" />
+  <form action="login" method="post">
+    <div class="field">
+      <label class="label">Username</label>
+      <div class="control has-icons-left">
+        <input class="input" type="text" name="name" id="name" value="" autofocus required />
+        <span class="icon is-left">
+          <i class="fas fa-user"></i>
+        </span>
+      </div>
     </div>
-     <div class="row">
-        <label for="password">Your password</label> 
-        <input type="password" name="password" id="password" value="" autofocus
-        class="u-full-width" />
-    </div>
-    <div class="row">
-        <input type="submit" value="login">
-    </div>
-</form>
 
+    <div class="field">
+      <label class="label">Password</label>
+      <div class="control has-icons-left">
+        <input class="input" type="password" name="password" id="password" value="" required />
+        <span class="icon is-left">
+          <i class="fas fa-lock"></i>
+        </span>
+      </div>
+    </div>
+
+    <div class="field is-grouped">
+      <div class="control">
+        <button class="button is-primary" type="submit">Log In</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <p>
+        Don't have an account? <a href="/user/register">Register here</a>
+      </p>
+    </div>
+  </form>
 </div>
+
 {% endblock content %}

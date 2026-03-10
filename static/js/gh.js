@@ -1,55 +1,39 @@
-// toggle mobile navigation
-function toggleMobileNav() {
-	if( $("nav").hasClass("mobile") ) {
-		$("nav").removeClass("mobile");
-	}
-	else {
-		$("nav").addClass("mobile");
-	}
-}
+// Bulma navbar burger menu toggle
+document.addEventListener('DOMContentLoaded', () => {
+  const $navbarBurgers = Array.prototype.slice.call(document.querySelectorAll('.navbar-burger'), 0);
 
-// hide mobile nav when clicking outside of nav area
-$("html").click(function() {
-	$("nav").removeClass("mobile");
+  $navbarBurgers.forEach( el => {
+    el.addEventListener('click', () => {
+      const target = el.dataset.target;
+      const $target = document.getElementById(target);
+      el.classList.toggle('is-active');
+      $target.classList.toggle('is-active');
+    });
+  });
 });
 
-$("nav").click(function(e){
-    e.stopPropagation();
+// Close notification when delete button is clicked
+document.addEventListener('DOMContentLoaded', () => {
+  (document.querySelectorAll('.notification .delete') || []).forEach(($delete) => {
+    const $notification = $delete.parentNode;
+
+    $delete.addEventListener('click', () => {
+      $notification.parentNode.removeChild($notification);
+    });
+  });
 });
 
-// hide nav on scroll down
-var scrolled = false;
-var lastScrollTop = 0;
-var delta = 5;
-var navbarHeight = $("nav").outerHeight();
-
-$(window).scroll(function(event){
-    scrolled = true;
+// Update file input display name
+document.addEventListener('DOMContentLoaded', () => {
+  const fileInputs = document.querySelectorAll('.file-input');
+  
+  fileInputs.forEach(fileInput => {
+    fileInput.addEventListener('change', (event) => {
+      const fileName = event.target.files[0]?.name || 'No file selected';
+      const fileNameElement = fileInput.closest('.file-label').querySelector('.file-name');
+      if (fileNameElement) {
+        fileNameElement.textContent = fileName;
+      }
+    });
+  });
 });
-
-setInterval(function() {
-    if (scrolled) {
-        hasScrolled();
-        scrolled = false;
-    }
-}, 250);
-
-function hasScrolled() {
-    var st = $(this).scrollTop();
-    
-    if(Math.abs(lastScrollTop - st) <= delta) // make sure user scrolled more than delta
-        return;
-    
-    if (st > lastScrollTop && st > navbarHeight) {
-		if( !$("nav").hasClass("mobile") ) {
-			$("nav").removeClass("nav-show").addClass("nav-hide");
-		}
-    } 
-	else {
-        if(st + $(window).height() < $(document).height()) {
-            $("nav").removeClass("nav-hide").addClass("nav-show");
-        }
-    }
-    
-    lastScrollTop = st;
-}

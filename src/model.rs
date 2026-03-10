@@ -61,6 +61,7 @@ pub struct Paper {
     pub vote_count: i32,
     pub readed: i32, // 0 = false, 1 = true
     pub pdf_file: Option<String>, // Filename of uploaded PDF
+    pub thumbnail: Option<String>, // Filename of thumbnail image
 }
 
 impl Paper {
@@ -124,6 +125,7 @@ impl Paper {
         venue: Option<String>,
         publication_year: Option<i32>,
         pdf_file: Option<String>,
+        thumbnail: Option<String>,
         user_id: i32,
     ) -> QueryResult<usize> {
         conn.run(move |c| {
@@ -137,6 +139,7 @@ impl Paper {
                 vote_count: 0,
                 readed: 0, // false
                 pdf_file,
+                thumbnail,
             };
             diesel::insert_into(papers::table).values(&p).execute(c)
         })

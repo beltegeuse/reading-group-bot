@@ -18,6 +18,7 @@ table! {
         vote_count -> Integer,
         readed -> Integer,
         pdf_file -> Nullable<Text>,
+        thumbnail -> Nullable<Text>,
     }
 }
 
