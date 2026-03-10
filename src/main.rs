@@ -4,8 +4,6 @@ extern crate rocket;
 extern crate rocket_sync_db_pools;
 #[macro_use]
 extern crate diesel;
-#[macro_use]
-extern crate diesel_migrations;
 
 use std::collections::HashMap;
 
@@ -287,8 +285,8 @@ async fn user_login_post(
 
 #[get("/logout")]
 async fn user_logout(jar: &CookieJar<'_>) -> Flash<Redirect> {
-    jar.remove(Cookie::named("user_id"));
-    jar.remove(Cookie::named("name"));
+    jar.remove_private(Cookie::from("user_id"));
+    jar.remove_private(Cookie::from("name"));
     Flash::success(Redirect::to("/"), "User successfully logout.")
 }
 
