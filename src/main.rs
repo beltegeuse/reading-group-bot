@@ -353,10 +353,10 @@ async fn user_register_post(conn: DbConn, register_form: Form<RegisterForm>) -> 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
 
 async fn run_migrations(rocket: Rocket<Build>) -> Rocket<Build> {
-   
-
     let conn = DbConn::get_one(&rocket).await.expect("database connection");
-    conn.run_pending_migrations(MIGRATIONS).unwrap();
+    conn.run(|c| c.run_pending_migrations(MIGRATIONS).map(|_| ()))
+        .await
+        .unwrap();
 
     rocket
 }
