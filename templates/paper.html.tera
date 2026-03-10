@@ -18,19 +18,55 @@
             class="u-full-width" required />
         </div>
         <div class="row">
-          <label for="url" style="display: block; margin-bottom: 5px;">Paper URL (optional if uploading a PDF):</label>
-          <input type="url" placeholder="Paper URL (optional)..."
-            name="url" id="url" value="" class="u-full-width" />
+          <label for="link" style="display: block; margin-bottom: 5px;">Project link (optional):</label>
+          <input type="url" placeholder="Project page link (optional)..."
+            name="link" id="link" value="" class="u-full-width" />
         </div>
         <div class="row">
-          <label for="pdf" style="display: block; margin-bottom: 5px;">Paper PDF (optional if providing a URL):</label>
+          <label for="pdf" style="display: block; margin-bottom: 5px;">Paper PDF (required):</label>
           <input type="file" accept="application/pdf,.pdf"
-            name="pdf" id="pdf" class="u-full-width" />
-          <small style="display: block; margin-top: 5px; color: #666;">Provide at least one of URL or PDF. Maximum PDF size: 200 MiB.</small>
+            name="pdf" id="pdf" class="u-full-width" required />
+          <small style="display: block; margin-top: 5px; color: #666;">PDF upload is mandatory. Maximum PDF size: 200 MiB.</small>
         </div>
         <div class="row">
-          <input type="text" placeholder="Optional: Venue where paper was published/presented (e.g., SIGGRAPH 2021)"
-            name="venue" id="venue" value="" class="u-full-width" />
+          <label for="year" style="display: block; margin-bottom: 5px;">Publication year:</label>
+          <input type="number" min="1900" max="2100" placeholder="Publication year"
+            name="year" id="year" value="" class="u-full-width" required />
+        </div>
+        <div class="row">
+          <label for="venue" style="display: block; margin-bottom: 5px;">Venue:</label>
+          <select name="venue" id="venue" class="u-full-width" required>
+            <option value="" disabled selected>Select venue...</option>
+            <optgroup label="Conferences">
+              <option value="SIGGRAPH / SIGGRAPH Asia">SIGGRAPH / SIGGRAPH Asia</option>
+              <option value="Eurographics (EG)">Eurographics (EG)</option>
+              <option value="Pacific Graphics (PG)">Pacific Graphics (PG)</option>
+              <option value="Symposium on Geometry Processing (SGP)">Symposium on Geometry Processing (SGP)</option>
+              <option value="Symposium on Rendering (EGSR)">Symposium on Rendering (EGSR)</option>
+              <option value="High Performance Graphics (HPG)">High Performance Graphics (HPG)</option>
+              <option value="IEEE VIS (Visualization)">IEEE VIS (Visualization)</option>
+              <option value="IEEE VR">IEEE VR</option>
+              <option value="CVPR, ICCV, ECCV (computer vision / graphics overlap)">CVPR, ICCV, ECCV (computer vision / graphics overlap)</option>
+              <option value="3DV">3DV</option>
+            </optgroup>
+            <optgroup label="Journals">
+              <option value="ACM Transactions on Graphics (TOG)">ACM Transactions on Graphics (TOG)</option>
+              <option value="IEEE Transactions on Visualization and Computer Graphics (TVCG)">IEEE Transactions on Visualization and Computer Graphics (TVCG)</option>
+              <option value="Computer Graphics Forum (CGF)">Computer Graphics Forum (CGF)</option>
+              <option value="Computers & Graphics (C&G)">Computers &amp; Graphics (C&amp;G)</option>
+              <option value="The Visual Computer (TVC)">The Visual Computer (TVC)</option>
+              <option value="IEEE Computer Graphics and Applications (CG&amp;A)">IEEE Computer Graphics and Applications (CG&amp;A)</option>
+            </optgroup>
+            <optgroup label="Preprint">
+              <option value="arXiv (cs.GR for graphics, cs.CV for vision)">arXiv (cs.GR for graphics, cs.CV for vision)</option>
+            </optgroup>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="row">
+          <label for="venue_other" style="display: block; margin-bottom: 5px;">If Other, specify venue:</label>
+          <input type="text" placeholder="Custom venue (required only if selecting Other)"
+            name="venue_other" id="venue_other" value="" class="u-full-width" />
         </div>
         <div class="row">
           <input type="submit" value="add paper">

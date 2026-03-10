@@ -13,6 +13,7 @@ table! {
         title -> Text,
         url -> Text,
         venue -> Nullable<Text>,
+        publication_year -> Nullable<Integer>,
         user_id -> Integer,
         vote_count -> Integer,
         readed -> Integer,

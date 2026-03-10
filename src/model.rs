@@ -56,6 +56,7 @@ pub struct Paper {
     pub title: String,
     pub url: String,
     pub venue: Option<String>,
+    pub publication_year: Option<i32>,
     pub user_id: i32,
     pub vote_count: i32,
     pub readed: i32, // 0 = false, 1 = true
@@ -121,6 +122,7 @@ impl Paper {
         title: String,
         url: Option<String>,
         venue: Option<String>,
+        publication_year: Option<i32>,
         pdf_file: Option<String>,
         user_id: i32,
     ) -> QueryResult<usize> {
@@ -130,6 +132,7 @@ impl Paper {
                 title,
                 url: url.unwrap_or_default(),
                 venue,
+                publication_year,
                 user_id,
                 vote_count: 0,
                 readed: 0, // false

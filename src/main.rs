@@ -93,6 +93,26 @@ struct PaperAddContext {
     cookie_info: Option<CookieInfo>,
 }
 
+const ALLOWED_VENUES: &[&str] = &[
+    "SIGGRAPH / SIGGRAPH Asia",
+    "Eurographics (EG)",
+    "Pacific Graphics (PG)",
+    "Symposium on Geometry Processing (SGP)",
+    "Symposium on Rendering (EGSR)",
+    "High Performance Graphics (HPG)",
+    "IEEE VIS (Visualization)",
+    "IEEE VR",
+    "CVPR, ICCV, ECCV (computer vision / graphics overlap)",
+    "3DV",
+    "ACM Transactions on Graphics (TOG)",
+    "IEEE Transactions on Visualization and Computer Graphics (TVCG)",
+    "Computer Graphics Forum (CGF)",
+    "Computers & Graphics (C&G)",
+    "The Visual Computer (TVC)",
+    "IEEE Computer Graphics and Applications (CG&A)",
+    "arXiv (cs.GR for graphics, cs.CV for vision)",
+];
+
 // Forward flash message if we have one
 #[get("/")]
 async fn index(jar: &CookieJar<'_>, flash: Option<FlashMessage<'_>>, conn: DbConn) -> Template {
@@ -131,8 +151,10 @@ async fn paper_add(jar: &CookieJar<'_>, flash: Option<FlashMessage<'_>>) -> Temp
 #[derive(Debug, FromForm)]
 pub struct PaperForm<'r> {
     pub title: String,
-    pub url: Option<String>,
+    pub link: Option<String>,
     pub venue: String,
+    pub venue_other: Option<String>,
+    pub year: i32,
     pub pdf: Option<TempFile<'r>>,
 }
 #[post("/add", data = "<paper_form>")]
@@ -178,33 +200,59 @@ async fn paper_add_post(
     // Check if the form is correct
     let title = paper.title.trim().to_string();
     if title.is_empty() {
-        return Flash::error(Redirect::to("/"), "Title cannot be empty.");
+        return Flash::error(Redirect::to("/paper/add"), "Title cannot be empty.");
     }
 
-    let url = paper
-        .url
+    let link = paper
+        .link
         .take()
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty());
-    let venue = {
-        let value = paper.venue.trim().to_string();
-        if value.is_empty() {
-            None
-        } else {
-            Some(value)
+
+    let selected_venue = paper.venue.trim().to_string();
+    if selected_venue.is_empty() {
+        return Flash::error(Redirect::to("/paper/add"), "Venue must be selected.");
+    }
+    let venue = if selected_venue == "Other" {
+        let venue_other = paper
+            .venue_other
+            .take()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty());
+
+        if venue_other.is_none() {
+            return Flash::error(
+                Redirect::to("/paper/add"),
+                "Please specify the venue when selecting Other.",
+            );
         }
+
+        venue_other
+    } else if ALLOWED_VENUES
+        .iter()
+        .any(|allowed_venue| *allowed_venue == selected_venue.as_str())
+    {
+        Some(selected_venue)
+    } else {
+        return Flash::error(Redirect::to("/paper/add"), "Invalid venue selection.");
     };
+
+    if !(1900..=2100).contains(&paper.year) {
+        return Flash::error(
+            Redirect::to("/paper/add"),
+            "Publication year must be between 1900 and 2100.",
+        );
+    }
+    let publication_year = Some(paper.year);
+
     let has_pdf = paper
         .pdf
         .as_ref()
         .map(|pdf| pdf.len() > 0)
         .unwrap_or(false);
 
-    if url.is_none() && !has_pdf {
-        return Flash::error(
-            Redirect::to("/paper/add"),
-            "Provide either a paper URL or a PDF file.",
-        );
+    if !has_pdf {
+        return Flash::error(Redirect::to("/paper/add"), "A PDF file is required.");
     }
 
     // Check if the paper was already proposed
@@ -227,46 +275,51 @@ async fn paper_add_post(
         }
     }
 
-    let pdf_file = if has_pdf {
-        let pdf = paper.pdf.as_mut().unwrap();
-        let is_pdf = pdf
-            .content_type()
-            .and_then(|content_type| content_type.extension())
-            .map(|ext| ext.as_str().eq_ignore_ascii_case("pdf"))
-            .unwrap_or(false)
-            || pdf
-                .name()
-                .map(|name| name.to_ascii_lowercase().ends_with(".pdf"))
-                .unwrap_or(false);
+    let pdf = paper.pdf.as_mut().unwrap();
+    let is_pdf = pdf
+        .content_type()
+        .and_then(|content_type| content_type.extension())
+        .map(|ext| ext.as_str().eq_ignore_ascii_case("pdf"))
+        .unwrap_or(false)
+        || pdf
+            .name()
+            .map(|name| name.to_ascii_lowercase().ends_with(".pdf"))
+            .unwrap_or(false);
 
-        if !is_pdf {
-            return Flash::error(Redirect::to("/paper/add"), "Uploaded file must be a PDF.");
-        }
+    if !is_pdf {
+        return Flash::error(Redirect::to("/paper/add"), "Uploaded file must be a PDF.");
+    }
 
-        if let Err(e) = fs::create_dir_all("static/pdfs") {
-            error_!("create pdf directory error: {}", e);
-            return Flash::error(
-                Redirect::to("/paper/add"),
-                "Could not prepare PDF storage.",
-            );
-        }
+    if let Err(e) = fs::create_dir_all("static/pdfs") {
+        error_!("create pdf directory error: {}", e);
+        return Flash::error(
+            Redirect::to("/paper/add"),
+            "Could not prepare PDF storage.",
+        );
+    }
 
-        let filename = format!("{}.pdf", Uuid::new_v4());
-        let filepath = format!("static/pdfs/{}", filename);
-        if let Err(e) = pdf.move_copy_to(&filepath).await {
-            error_!("persist pdf error: {}", e);
-            return Flash::error(
-                Redirect::to("/paper/add"),
-                "Could not save the uploaded PDF.",
-            );
-        }
+    let filename = format!("{}.pdf", Uuid::new_v4());
+    let filepath = format!("static/pdfs/{}", filename);
+    if let Err(e) = pdf.move_copy_to(&filepath).await {
+        error_!("persist pdf error: {}", e);
+        return Flash::error(
+            Redirect::to("/paper/add"),
+            "Could not save the uploaded PDF.",
+        );
+    }
+    let pdf_file = Some(filename);
 
-        Some(filename)
-    } else {
-        None
-    };
-
-    if let Err(e) = Paper::insert(&conn, title, url, venue, pdf_file.clone(), cookie_info.id).await {
+    if let Err(e) = Paper::insert(
+        &conn,
+        title,
+        link,
+        venue,
+        publication_year,
+        pdf_file.clone(),
+        cookie_info.id,
+    )
+    .await
+    {
         error_!("DB insertion error: {}", e);
         if let Some(pdf_file) = pdf_file {
             let _ = fs::remove_file(format!("static/pdfs/{}", pdf_file));

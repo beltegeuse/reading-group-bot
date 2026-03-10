@@ -57,14 +57,19 @@
                   <a href="/pdfs/{{paper.0.pdf_file}}" target="_blank">{{ paper.0.title }}</a>
                   <small><i class="fas fa-file-pdf"></i> PDF</small>
                   {% if paper.0.url %}
-                    <small> · <a href="{{paper.0.url}}" target="_blank">URL</a></small>
+                    <small> · <a href="{{paper.0.url}}" target="_blank">Project page</a></small>
                   {% endif %}
                 {% elif paper.0.url %}
                   <a href="{{paper.0.url}}" target="_blank">{{ paper.0.title }}</a>
                 {% else %}
                   {{ paper.0.title }}
                 {% endif %}
-                {% if paper.0.venue %}<b> ({{paper.0.venue}})</b>{%endif%}
+                {% if paper.0.venue or paper.0.publication_year %}
+                  <b> (
+                    {% if paper.0.venue %}{{paper.0.venue}}{% endif %}
+                    {% if paper.0.publication_year %}{% if paper.0.venue %} {% endif %}{{paper.0.publication_year}}{% endif %}
+                  )</b>
+                {%endif%}
                 
                 {% if cookie_info %}
                   {% if paper.0.user_id == cookie_info.id %}
