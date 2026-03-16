@@ -8,6 +8,7 @@ table! {
         is_approved -> Integer,
         is_disabled -> Integer,
         role -> Text,
+        last_connected -> Nullable<Text>,
     }
 }
 
@@ -25,6 +26,7 @@ table! {
         thumbnail -> Nullable<Text>,
         added_at -> Text,
         discussed_at -> Nullable<Text>,
+        presenter_id -> Nullable<Integer>,
     }
 }
 

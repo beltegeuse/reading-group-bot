@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use chrono::{DateTime, Utc};
 use crypto::digest::Digest;
 use crypto::sha3::Sha3;
 use diesel::{prelude::*, result::QueryResult};
@@ -26,6 +27,7 @@ pub struct Login {
     pub is_approved: i32,
     pub is_disabled: i32,
     pub role: String,
+    pub last_connected: Option<String>,
 }
 pub fn hash_password(password: String) -> String {
     let mut hasher = Sha3::sha3_256();
@@ -49,6 +51,7 @@ impl Login {
                 is_approved: 0,
                 is_disabled: 0,
                 role: register.role,
+                last_connected: None,
             };
             diesel::insert_into(logins::table).values(&p).execute(c)
         })
@@ -56,12 +59,8 @@ impl Login {
     }
 
     pub async fn get(conn: &DbConn, user_id: i32) -> QueryResult<Login> {
-        conn.run(move |c| {
-            all_logins
-                .filter(logins::id.eq(user_id))
-                .first::<Login>(c)
-        })
-        .await
+        conn.run(move |c| all_logins.filter(logins::id.eq(user_id)).first::<Login>(c))
+            .await
     }
 
     pub async fn promote_to_admin(conn: &DbConn, user_id: i32) -> QueryResult<usize> {
@@ -89,11 +88,7 @@ impl Login {
         .await
     }
 
-    pub async fn set_disabled(
-        conn: &DbConn,
-        user_id: i32,
-        is_disabled: i32,
-    ) -> QueryResult<usize> {
+    pub async fn set_disabled(conn: &DbConn, user_id: i32, is_disabled: i32) -> QueryResult<usize> {
         conn.run(move |c| {
             diesel::update(all_logins)
                 .filter(logins::id.eq(user_id))
@@ -112,6 +107,20 @@ impl Login {
         })
         .await
     }
+
+    pub async fn update_last_connected(
+        conn: &DbConn,
+        user_id: i32,
+        timestamp: String,
+    ) -> QueryResult<usize> {
+        conn.run(move |c| {
+            diesel::update(all_logins)
+                .filter(logins::id.eq(user_id))
+                .set(logins::last_connected.eq(Some(timestamp)))
+                .execute(c)
+        })
+        .await
+    }
 }
 
 ////////////// Papers
@@ -125,21 +134,18 @@ pub struct Paper {
     pub publication_year: Option<i32>,
     pub user_id: i32,
     pub vote_count: i32,
-    pub readed: i32, // 0 = false, 1 = true
-    pub pdf_file: Option<String>, // Filename of uploaded PDF
+    pub readed: i32,               // 0 = false, 1 = true
+    pub pdf_file: Option<String>,  // Filename of uploaded PDF
     pub thumbnail: Option<String>, // Filename of thumbnail image
     pub added_at: String,
     pub discussed_at: Option<String>,
+    pub presenter_id: Option<i32>,
 }
 
 impl Paper {
     pub async fn get(conn: &DbConn, paper_id: i32) -> QueryResult<Paper> {
-        conn.run(move |c| {
-            all_papers
-                .filter(papers::id.eq(paper_id))
-                .first::<Paper>(c)
-        })
-        .await
+        conn.run(move |c| all_papers.filter(papers::id.eq(paper_id)).first::<Paper>(c))
+            .await
     }
 
     pub async fn all_active_with_vote_status(
@@ -247,6 +253,7 @@ impl Paper {
         conn: &DbConn,
         paper_id: i32,
         discussed_date: String,
+        presenter_id: Option<i32>,
     ) -> QueryResult<usize> {
         conn.run(move |c| {
             diesel::update(all_papers)
@@ -254,6 +261,7 @@ impl Paper {
                 .set((
                     papers::readed.eq(1),
                     papers::discussed_at.eq(Some(discussed_date)),
+                    papers::presenter_id.eq(presenter_id),
                 ))
                 .execute(c)
         })
@@ -290,7 +298,108 @@ impl Paper {
         })
         .await
     }
+}
 
+////////////// User stats
+#[derive(Debug, Serialize, Clone)]
+#[serde(crate = "rocket::serde")]
+pub struct UserWithStats {
+    pub id: i32,
+    pub name: String,
+    pub email: String,
+    pub role: String,
+    pub role_label: String,
+    pub is_admin: bool,
+    pub is_approved: bool,
+    pub is_disabled: bool,
+    pub last_connected_display: String,
+    pub papers_proposed: usize,
+    pub papers_presented: usize,
+}
+
+fn relative_time(ts: &str) -> String {
+    let parsed = DateTime::parse_from_rfc3339(ts)
+        .map(|dt| dt.with_timezone(&Utc))
+        .ok();
+    match parsed {
+        None => ts.to_string(),
+        Some(dt) => {
+            let now = Utc::now();
+            let diff = now.signed_duration_since(dt);
+            let seconds = diff.num_seconds();
+            let minutes = diff.num_minutes();
+            let hours = diff.num_hours();
+            let days = diff.num_days();
+            if seconds < 60 {
+                "Just now".to_string()
+            } else if minutes < 60 {
+                if minutes == 1 {
+                    "1 minute ago".to_string()
+                } else {
+                    format!("{} minutes ago", minutes)
+                }
+            } else if hours < 24 {
+                if hours == 1 {
+                    "1 hour ago".to_string()
+                } else {
+                    format!("{} hours ago", hours)
+                }
+            } else if days == 0 {
+                "Today".to_string()
+            } else if days == 1 {
+                "Yesterday".to_string()
+            } else if days < 30 {
+                format!("{} days ago", days)
+            } else if days < 365 {
+                let months = days / 30;
+                if months == 1 {
+                    "1 month ago".to_string()
+                } else {
+                    format!("{} months ago", months)
+                }
+            } else {
+                let years = days / 365;
+                if years == 1 {
+                    "1 year ago".to_string()
+                } else {
+                    format!("{} years ago", years)
+                }
+            }
+        }
+    }
+}
+
+pub fn build_users_with_stats(logins: Vec<Login>, papers: &[Paper]) -> Vec<UserWithStats> {
+    logins
+        .into_iter()
+        .filter_map(|login| {
+            let uid = login.id?;
+            let last_connected_display = match &login.last_connected {
+                Some(ts) => relative_time(ts),
+                None => "Never".to_string(),
+            };
+            let papers_proposed = papers.iter().filter(|p| p.user_id == uid).count();
+            let papers_presented = papers
+                .iter()
+                .filter(|p| p.presenter_id == Some(uid) && p.discussed_at.is_some())
+                .count();
+            let role = crate::normalize_role(&login.role).unwrap_or_else(|| "other".to_string());
+            let role_label = crate::role_label(&role).to_string();
+            Some(UserWithStats {
+                id: uid,
+                name: login.name,
+                email: login.email,
+                role,
+                role_label,
+                is_admin: login.is_admin == 1,
+                is_approved: login.is_approved == 1,
+                is_disabled: login.is_disabled == 1,
+                last_connected_display,
+                papers_proposed,
+                papers_presented,
+            })
+        })
+        .collect()
 }
 
 #[derive(Queryable, Insertable, Debug, Serialize)]

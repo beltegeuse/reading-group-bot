@@ -8,13 +8,14 @@ extern crate diesel;
 use std::fs;
 use uuid::Uuid;
 
-use diesel_migrations::{embed_migrations, MigrationHarness};
 use diesel_migrations::EmbeddedMigrations;
+use diesel_migrations::{embed_migrations, MigrationHarness};
 // Use all modelss
 use model::*;
 use user::seed_default_user;
 
 // Rocket tools
+use chrono::Utc;
 use rocket::fairing::AdHoc;
 use rocket::form::{Contextual, Form};
 use rocket::fs::{relative, FileServer, TempFile};
@@ -26,9 +27,9 @@ use rocket::{Build, Rocket};
 use rocket_dyn_templates::Template;
 
 pub mod model;
+pub mod pdf_utils;
 pub mod schema;
 pub mod user;
-pub mod pdf_utils;
 
 #[database("sqlite_database")]
 pub struct DbConn(diesel::SqliteConnection);
@@ -141,23 +142,10 @@ struct PaperEditContext {
 
 #[derive(Debug, Serialize)]
 #[serde(crate = "rocket::serde")]
-struct AdminUserInfo {
-    id: i32,
-    name: String,
-    email: String,
-    role: String,
-    role_label: String,
-    is_admin: bool,
-    is_approved: bool,
-    is_disabled: bool,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(crate = "rocket::serde")]
 struct AdminContext {
     flash: Option<(String, String)>,
     papers: Vec<PaperWithUserInfo>,
-    users: Vec<AdminUserInfo>,
+    users: Vec<UserWithStats>,
     cookie_info: Option<CookieInfo>,
 }
 
@@ -391,23 +379,8 @@ async fn paper_admin_discussed(
 
     let users = match Login::all(&conn).await {
         Ok(logins) => {
-            let mut users = Vec::new();
-            for login in logins {
-                if let Some(user_id) = login.id {
-                    let role = normalize_role(&login.role).unwrap_or_else(|| "other".to_string());
-                    users.push(AdminUserInfo {
-                        id: user_id,
-                        name: login.name,
-                        email: login.email,
-                        role_label: role_label(&role).to_string(),
-                        role,
-                        is_admin: login.is_admin == 1,
-                        is_approved: login.is_approved == 1,
-                        is_disabled: login.is_disabled == 1,
-                    });
-                }
-            }
-            users
+            let all_papers_for_stats = Paper::all(&conn).await.unwrap_or_default();
+            build_users_with_stats(logins, &all_papers_for_stats)
         }
         Err(_) => vec![],
     };
@@ -451,8 +424,7 @@ async fn paper_add(jar: &CookieJar<'_>, flash: Option<FlashMessage<'_>>, conn: D
             }
             Err(_) => {
                 access_message = Some(
-                    "Could not validate your account. Please log out and log in again."
-                        .to_string(),
+                    "Could not validate your account. Please log out and log in again.".to_string(),
                 );
             }
         },
@@ -469,6 +441,7 @@ async fn paper_add(jar: &CookieJar<'_>, flash: Option<FlashMessage<'_>>, conn: D
 #[derive(Debug, FromForm)]
 pub struct DiscussForm {
     pub discussed_date: String,
+    pub presenter_id: Option<i32>,
 }
 
 #[derive(Debug, FromForm)]
@@ -617,11 +590,7 @@ async fn paper_add_post(
     }
     let publication_year = Some(paper.year);
 
-    let has_pdf = paper
-        .pdf
-        .as_ref()
-        .map(|pdf| pdf.len() > 0)
-        .unwrap_or(false);
+    let has_pdf = paper.pdf.as_ref().map(|pdf| pdf.len() > 0).unwrap_or(false);
 
     if !has_pdf {
         return Flash::error(Redirect::to("/paper/add"), "A PDF file is required.");
@@ -664,10 +633,7 @@ async fn paper_add_post(
 
     if let Err(e) = fs::create_dir_all("static/pdfs") {
         error_!("create pdf directory error: {}", e);
-        return Flash::error(
-            Redirect::to("/paper/add"),
-            "Could not prepare PDF storage.",
-        );
+        return Flash::error(Redirect::to("/paper/add"), "Could not prepare PDF storage.");
     }
 
     if let Err(e) = fs::create_dir_all("static/thumbnails") {
@@ -693,7 +659,7 @@ async fn paper_add_post(
     let thumbnail = if pdf_file.is_some() {
         let thumbnail_filename = format!("{}.png", Uuid::new_v4());
         let thumbnail_filepath = format!("static/thumbnails/{}", thumbnail_filename);
-        
+
         match pdf_utils::generate_thumbnail(&filepath, &thumbnail_filepath).await {
             Ok(_) => {
                 info_!("Thumbnail generated: {}", thumbnail_filename);
@@ -775,12 +741,7 @@ async fn paper_edit(
 
     let paper = match Paper::get(&conn, id).await {
         Ok(paper) => paper,
-        Err(_) => {
-            return Err(Flash::error(
-                Redirect::to("/"),
-                "Paper not found.",
-            ))
-        }
+        Err(_) => return Err(Flash::error(Redirect::to("/"), "Paper not found.")),
     };
 
     if !can_manage_paper(&login, &paper, cookie_info.id) {
@@ -822,10 +783,7 @@ async fn paper_edit_post(
 ) -> Flash<Redirect> {
     let cookie_info = read_cookie(jar);
     if cookie_info.is_none() {
-        return Flash::error(
-            Redirect::to("/"),
-            "Please log in before editing papers.",
-        );
+        return Flash::error(Redirect::to("/"), "Please log in before editing papers.");
     }
     let cookie_info = cookie_info.unwrap();
 
@@ -968,15 +926,23 @@ async fn paper_mark_discussed(
         );
     }
 
-    let discussed_date = discuss_form.into_inner().discussed_date.trim().to_string();
+    let discuss_form = discuss_form.into_inner();
+    let discussed_date = discuss_form.discussed_date.trim().to_string();
+    let presenter_id = discuss_form.presenter_id;
     if discussed_date.is_empty() {
         return Flash::error(
             Redirect::to("/paper/admin"),
             "Please provide the date when the paper was discussed.",
         );
     }
+    if presenter_id.is_none() {
+        return Flash::error(
+            Redirect::to("/paper/admin"),
+            "Please select the user who presented the paper.",
+        );
+    }
 
-    match Paper::mark_discussed(&conn, id, discussed_date).await {
+    match Paper::mark_discussed(&conn, id, discussed_date, presenter_id).await {
         Ok(updated_rows) if updated_rows > 0 => {
             Flash::success(Redirect::to("/paper/admin"), "Paper marked as discussed.")
         }
@@ -1010,7 +976,10 @@ async fn user_approve(jar: &CookieJar<'_>, conn: DbConn, id: i32) -> Flash<Redir
         Ok(updated_rows) if updated_rows > 0 => {
             Flash::success(Redirect::to("/paper/admin"), "User approved successfully.")
         }
-        _ => Flash::error(Redirect::to("/paper/admin"), "Could not approve user account."),
+        _ => Flash::error(
+            Redirect::to("/paper/admin"),
+            "Could not approve user account.",
+        ),
     }
 }
 
@@ -1085,10 +1054,7 @@ async fn user_set_role(
         .unwrap_or(false)
         == false
     {
-        return Flash::error(
-            Redirect::to("/"),
-            "Only admin users can edit user roles.",
-        );
+        return Flash::error(Redirect::to("/"), "Only admin users can edit user roles.");
     }
 
     let role = match normalize_role(&role_form.into_inner().role) {
@@ -1102,9 +1068,10 @@ async fn user_set_role(
     };
 
     match Login::set_role(&conn, id, role).await {
-        Ok(updated_rows) if updated_rows > 0 => {
-            Flash::success(Redirect::to("/paper/admin"), "User role updated successfully.")
-        }
+        Ok(updated_rows) if updated_rows > 0 => Flash::success(
+            Redirect::to("/paper/admin"),
+            "User role updated successfully.",
+        ),
         _ => Flash::error(Redirect::to("/paper/admin"), "Could not update user role."),
     }
 }
@@ -1172,7 +1139,10 @@ async fn paper_remove(jar: &CookieJar<'_>, conn: DbConn, id: i32) -> Flash<Redir
                 let _ = fs::remove_file(format!("static/thumbnails/{}", thumbnail));
             }
 
-            Flash::success(Redirect::to(redirect_target), format!("Paper removed: {}", id))
+            Flash::success(
+                Redirect::to(redirect_target),
+                format!("Paper removed: {}", id),
+            )
         }
     }
 }
@@ -1208,7 +1178,10 @@ async fn paper_vote_up(jar: &CookieJar<'_>, conn: DbConn, id: i32) -> Flash<Redi
     if res {
         Flash::success(Redirect::to("/"), "Marked as interested.")
     } else {
-        Flash::error(Redirect::to("/"), "You already marked this paper as interested.")
+        Flash::error(
+            Redirect::to("/"),
+            "You already marked this paper as interested.",
+        )
     }
 }
 #[put("/down/<id>")]
@@ -1242,7 +1215,10 @@ async fn paper_vote_down(jar: &CookieJar<'_>, conn: DbConn, id: i32) -> Flash<Re
     if res {
         Flash::success(Redirect::to("/"), "Marked as ignored.")
     } else {
-        Flash::error(Redirect::to("/"), "You already marked this paper as ignored.")
+        Flash::error(
+            Redirect::to("/"),
+            "You already marked this paper as ignored.",
+        )
     }
 }
 
@@ -1294,7 +1270,14 @@ async fn user_login_post(
                                 ),
                             );
                         }
-                        jar.add_private(Cookie::new("user_id", l.id.unwrap().to_string()));
+                        let user_id = l.id.unwrap();
+                        if let Err(e) =
+                            Login::update_last_connected(&conn, user_id, Utc::now().to_rfc3339())
+                                .await
+                        {
+                            error_!("update_last_connected error: {}", e);
+                        }
+                        jar.add_private(Cookie::new("user_id", user_id.to_string()));
                         jar.add_private(Cookie::new("name", l.name.clone()));
                         jar.add_private(Cookie::new("is_admin", l.is_admin.to_string()));
                         return Flash::success(Redirect::to("/"), "Successfully logged.");
