@@ -5,6 +5,7 @@ db.sqlite*
 .DS_Store
 *.log
 local/*
+!local/
 !local/default_user.json
 .vscode/
 .idea/
