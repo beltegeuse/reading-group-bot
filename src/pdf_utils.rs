@@ -1,3 +1,4 @@
+use std::io::ErrorKind;
 use std::process::Command;
 
 /// Generate a thumbnail from the first page of a PDF file using ImageMagick
@@ -29,9 +30,19 @@ pub async fn generate_thumbnail(pdf_path: &str, output_path: &str) -> Result<(),
         .arg("200x280") // Resize to fit within 200x280 pixels
         .arg(&output_path); // Output file
 
-    let output = cmd
-        .output()
-        .map_err(|e| format!("Failed to execute ImageMagick magick: {}", e))?;
+    let output = match cmd.output() {
+        Ok(output) => output,
+        Err(e) if e.kind() == ErrorKind::NotFound => {
+            return try_convert_command(
+                &pdf_with_page,
+                output_path,
+                &format!("magick command not found: {}", e),
+            );
+        }
+        Err(e) => {
+            return Err(format!("Failed to execute ImageMagick magick: {}", e));
+        }
+    };
 
     if !output.status.success() {
         let error_msg = String::from_utf8_lossy(&output.stderr);
@@ -47,7 +58,7 @@ fn try_convert_command(
     output_path: &str,
     previous_error: &str,
 ) -> Result<(), String> {
-    let output = Command::new("convert")
+    let output = match Command::new("convert")
         .arg(pdf_with_page)
         .arg("-density")
         .arg("150")
@@ -61,12 +72,27 @@ fn try_convert_command(
         .arg("200x280")
         .arg(output_path)
         .output()
-        .map_err(|e| format!("Failed to execute ImageMagick convert: {}", e))?;
+    {
+        Ok(output) => output,
+        Err(e) if e.kind() == ErrorKind::NotFound => {
+            return Err(format!(
+                "No ImageMagick command available. Tried 'magick' and 'convert'. Previous attempt: {}. Install ImageMagick and Ghostscript.",
+                previous_error.trim()
+            ));
+        }
+        Err(e) => {
+            return Err(format!(
+                "Failed to execute ImageMagick convert: {}. Previous attempt: {}",
+                e,
+                previous_error.trim()
+            ));
+        }
+    };
 
     if !output.status.success() {
         let error_msg = String::from_utf8_lossy(&output.stderr);
         return Err(format!(
-            "ImageMagick failed. First attempt: {}. Fallback attempt: {}. Please ensure Ghostscript is installed (brew install ghostscript)",
+            "ImageMagick failed. First attempt: {}. Fallback attempt: {}. Please ensure Ghostscript is installed.",
             previous_error.trim(),
             error_msg.trim()
         ));

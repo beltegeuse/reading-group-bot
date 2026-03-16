@@ -34,7 +34,9 @@ RUN apk add --no-cache \
     sqlite-libs \
     openssl \
     ca-certificates \
-    libgcc
+    libgcc \
+    imagemagick \
+    ghostscript
 
 # Create app directory
 WORKDIR /app
