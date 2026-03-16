@@ -16,10 +16,25 @@ struct DefaultUserConfig {
     password: String,
     #[serde(default = "default_is_admin")]
     is_admin: bool,
+    #[serde(default = "default_role")]
+    role: String,
 }
 
 fn default_is_admin() -> bool {
     true
+}
+
+fn default_role() -> String {
+    "other".to_string()
+}
+
+fn normalize_role(role: &str) -> String {
+    match role.trim().to_lowercase().as_str() {
+        "master_student" | "master student" => "master_student".to_string(),
+        "phd_student" | "phd student" | "phd students" => "phd_student".to_string(),
+        "prof" | "profs" | "professor" | "professors" => "prof".to_string(),
+        _ => "other".to_string(),
+    }
 }
 
 fn read_default_user_config() -> Option<DefaultUserConfig> {
@@ -102,6 +117,11 @@ pub async fn seed_default_user(conn: &DbConn) {
                 name: default_user.name,
                 email: default_user.email,
                 password: default_user.password,
+                role: if default_user.is_admin {
+                    "prof".to_string()
+                } else {
+                    normalize_role(&default_user.role)
+                },
             };
             if let Err(e) = Login::insert(register, conn).await {
                 error_!(

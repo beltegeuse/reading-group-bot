@@ -1,0 +1,99 @@
+{% extends "base" %}
+
+{% block content %}
+  {% if flash %}
+  <div class="notification is-{{flash.0}}">
+    <button class="delete"></button>
+    {{ flash.1 }}
+  </div>
+  {% endif %}
+
+  <div class="box">
+    <h2 class="title">Edit Paper</h2>
+
+    <form action="/paper/edit/{{paper.id}}" method="post">
+      <div class="field">
+        <label class="label">Paper title *</label>
+        <div class="control has-icons-left">
+          <input class="input" type="text" name="title" id="title" value="{{ paper.title }}" required />
+          <span class="icon is-left">
+            <i class="fas fa-heading"></i>
+          </span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="link">Project link (optional)</label>
+        <div class="control has-icons-left">
+          <input class="input" type="url" name="link" id="link" value="{{ paper.url }}" />
+          <span class="icon is-left">
+            <i class="fas fa-link"></i>
+          </span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="year">Publication year *</label>
+        <div class="control">
+          <input class="input" type="number" min="1900" max="2100" name="year" id="year" value="{{ paper.publication_year | default(value=2024) }}" required />
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="venue">Venue *</label>
+        <div class="control">
+          <div class="select is-fullwidth">
+            <select name="venue" id="venue" required>
+              <option value="" disabled {% if not selected_venue %}selected{% endif %}>Select venue...</option>
+              <optgroup label="Conferences">
+                <option value="SIGGRAPH / SIGGRAPH Asia" {% if selected_venue == "SIGGRAPH / SIGGRAPH Asia" %}selected{% endif %}>SIGGRAPH / SIGGRAPH Asia</option>
+                <option value="Eurographics (EG)" {% if selected_venue == "Eurographics (EG)" %}selected{% endif %}>Eurographics (EG)</option>
+                <option value="Pacific Graphics (PG)" {% if selected_venue == "Pacific Graphics (PG)" %}selected{% endif %}>Pacific Graphics (PG)</option>
+                <option value="Symposium on Geometry Processing (SGP)" {% if selected_venue == "Symposium on Geometry Processing (SGP)" %}selected{% endif %}>Symposium on Geometry Processing (SGP)</option>
+                <option value="Symposium on Rendering (EGSR)" {% if selected_venue == "Symposium on Rendering (EGSR)" %}selected{% endif %}>Symposium on Rendering (EGSR)</option>
+                <option value="High Performance Graphics (HPG)" {% if selected_venue == "High Performance Graphics (HPG)" %}selected{% endif %}>High Performance Graphics (HPG)</option>
+                <option value="IEEE VIS (Visualization)" {% if selected_venue == "IEEE VIS (Visualization)" %}selected{% endif %}>IEEE VIS (Visualization)</option>
+                <option value="IEEE VR" {% if selected_venue == "IEEE VR" %}selected{% endif %}>IEEE VR</option>
+                <option value="CVPR, ICCV, ECCV (computer vision / graphics overlap)" {% if selected_venue == "CVPR, ICCV, ECCV (computer vision / graphics overlap)" %}selected{% endif %}>CVPR, ICCV, ECCV (computer vision / graphics overlap)</option>
+                <option value="3DV" {% if selected_venue == "3DV" %}selected{% endif %}>3DV</option>
+              </optgroup>
+              <optgroup label="Journals">
+                <option value="ACM Transactions on Graphics (TOG)" {% if selected_venue == "ACM Transactions on Graphics (TOG)" %}selected{% endif %}>ACM Transactions on Graphics (TOG)</option>
+                <option value="IEEE Transactions on Visualization and Computer Graphics (TVCG)" {% if selected_venue == "IEEE Transactions on Visualization and Computer Graphics (TVCG)" %}selected{% endif %}>IEEE Transactions on Visualization and Computer Graphics (TVCG)</option>
+                <option value="Computer Graphics Forum (CGF)" {% if selected_venue == "Computer Graphics Forum (CGF)" %}selected{% endif %}>Computer Graphics Forum (CGF)</option>
+                <option value="Computers & Graphics (C&G)" {% if selected_venue == "Computers & Graphics (C&G)" %}selected{% endif %}>Computers &amp; Graphics (C&amp;G)</option>
+                <option value="The Visual Computer (TVC)" {% if selected_venue == "The Visual Computer (TVC)" %}selected{% endif %}>The Visual Computer (TVC)</option>
+                <option value="IEEE Computer Graphics and Applications (CG&amp;A)" {% if selected_venue == "IEEE Computer Graphics and Applications (CG&A)" or selected_venue == "IEEE Computer Graphics and Applications (CG&amp;A)" %}selected{% endif %}>IEEE Computer Graphics and Applications (CG&amp;A)</option>
+              </optgroup>
+              <optgroup label="Preprint">
+                <option value="arXiv (cs.GR for graphics, cs.CV for vision)" {% if selected_venue == "arXiv (cs.GR for graphics, cs.CV for vision)" %}selected{% endif %}>arXiv (cs.GR for graphics, cs.CV for vision)</option>
+              </optgroup>
+              <option value="Other" {% if selected_venue == "Other" %}selected{% endif %}>Other</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="venue_other">If Other, specify venue</label>
+        <div class="control">
+          <input class="input" type="text" name="venue_other" id="venue_other" value="{{ venue_other }}" />
+        </div>
+      </div>
+
+      <div class="field is-grouped">
+        <div class="control">
+          <button class="button is-primary" type="submit">
+            <span class="icon">
+              <i class="fas fa-save"></i>
+            </span>
+            <span>Save Changes</span>
+          </button>
+        </div>
+        <div class="control">
+          <a class="button is-light" href="/">Cancel</a>
+        </div>
+      </div>
+    </form>
+  </div>
+{% endblock content %}

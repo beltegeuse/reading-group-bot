@@ -1,13 +1,14 @@
 {% extends "base" %}
   
 {% block content %}
-  {% if cookie_info %}
-    {% if flash %}
-    <div class="notification is-{{flash.0}}">
-      <button class="delete"></button>
-      {{ flash.1 }}
-    </div>
-    {% endif %}
+  {% if flash %}
+  <div class="notification is-{{flash.0}}">
+    <button class="delete"></button>
+    {{ flash.1 }}
+  </div>
+  {% endif %}
+
+  {% if can_submit %}
 
     <div class="box">
       <h2 class="title">Add a new paper to our pile!</h2>
@@ -123,17 +124,17 @@
       </form>
     </div>
   {% else %}
-    {% if flash %}
-    <div class="notification is-{{flash.0}}">
-      <button class="delete"></button>
-      {{ flash.1 }}
-    </div>
-    {% endif %}
-    
     <article class="message is-info">
       <div class="message-body">
-        <p class="title is-5">Login Required</p>
-        <p>You need to login before proposing new papers. Please <a href="/user/login">log in</a> or <a href="/user/register">register</a> to continue.</p>
+        <p class="title is-5">Paper Upload Access Required</p>
+        {% if access_message %}
+          <p>{{ access_message }}</p>
+        {% endif %}
+        {% if not cookie_info %}
+          <p>Please <a href="/user/login">log in</a> or <a href="/user/register">register</a> to continue.</p>
+        {% else %}
+          <p>Once approved, you can upload PDFs and propose new papers.</p>
+        {% endif %}
       </div>
     </article>
   {% endif %}

@@ -23,6 +23,9 @@ pub struct Login {
     pub email: String,
     pub password_hash: String,
     pub is_admin: i32,
+    pub is_approved: i32,
+    pub is_disabled: i32,
+    pub role: String,
 }
 pub fn hash_password(password: String) -> String {
     let mut hasher = Sha3::sha3_256();
@@ -43,6 +46,9 @@ impl Login {
                 email: register.email,
                 password_hash: hash_password(register.password),
                 is_admin: 0,
+                is_approved: 0,
+                is_disabled: 0,
+                role: register.role,
             };
             diesel::insert_into(logins::table).values(&p).execute(c)
         })
@@ -62,7 +68,46 @@ impl Login {
         conn.run(move |c| {
             diesel::update(all_logins)
                 .filter(logins::id.eq(user_id))
-                .set(logins::is_admin.eq(1))
+                .set((
+                    logins::is_admin.eq(1),
+                    logins::is_approved.eq(1),
+                    logins::is_disabled.eq(0),
+                    logins::role.eq("prof"),
+                ))
+                .execute(c)
+        })
+        .await
+    }
+
+    pub async fn approve(conn: &DbConn, user_id: i32) -> QueryResult<usize> {
+        conn.run(move |c| {
+            diesel::update(all_logins)
+                .filter(logins::id.eq(user_id))
+                .set(logins::is_approved.eq(1))
+                .execute(c)
+        })
+        .await
+    }
+
+    pub async fn set_disabled(
+        conn: &DbConn,
+        user_id: i32,
+        is_disabled: i32,
+    ) -> QueryResult<usize> {
+        conn.run(move |c| {
+            diesel::update(all_logins)
+                .filter(logins::id.eq(user_id))
+                .set(logins::is_disabled.eq(is_disabled))
+                .execute(c)
+        })
+        .await
+    }
+
+    pub async fn set_role(conn: &DbConn, user_id: i32, role: String) -> QueryResult<usize> {
+        conn.run(move |c| {
+            diesel::update(all_logins)
+                .filter(logins::id.eq(user_id))
+                .set(logins::role.eq(role))
                 .execute(c)
         })
         .await
@@ -209,6 +254,28 @@ impl Paper {
                 .set((
                     papers::readed.eq(1),
                     papers::discussed_at.eq(Some(discussed_date)),
+                ))
+                .execute(c)
+        })
+        .await
+    }
+
+    pub async fn update_fields(
+        conn: &DbConn,
+        paper_id: i32,
+        title: String,
+        url: String,
+        venue: Option<String>,
+        publication_year: Option<i32>,
+    ) -> QueryResult<usize> {
+        conn.run(move |c| {
+            diesel::update(all_papers)
+                .filter(papers::id.eq(paper_id))
+                .set((
+                    papers::title.eq(title),
+                    papers::url.eq(url),
+                    papers::venue.eq(venue),
+                    papers::publication_year.eq(publication_year),
                 ))
                 .execute(c)
         })

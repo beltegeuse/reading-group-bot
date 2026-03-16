@@ -149,7 +149,15 @@
                   {% endif %}
                 </div>
 
-                {% if item.paper.user_id == cookie_info.id %}
+                {% if item.paper.user_id == cookie_info.id or cookie_info.is_admin %}
+                  <div class="control">
+                    <a class="button is-small is-info is-outlined" href="/paper/edit/{{item.paper.id}}">
+                      <span class="icon is-small">
+                        <i class="fas fa-pen"></i>
+                      </span>
+                      <span>Edit</span>
+                    </a>
+                  </div>
                   <div class="control">
                     <form action="/paper/remove/{{item.paper.id}}" method="post" style="display: inline;">
                       <input type="hidden" name="_method" value="put" />

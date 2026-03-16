@@ -11,6 +11,88 @@
   <h1 class="title">Admin · Mark Discussed</h1>
   <p class="subtitle">Only admin users can mark papers as discussed.</p>
 
+  <h2 class="title is-4 mt-5">User Management</h2>
+  <p class="subtitle is-6">Approve users for paper uploads and disable or re-enable accounts.</p>
+
+  {% if users | length == 0 %}
+    <article class="message is-warning">
+      <div class="message-body">No registered users found.</div>
+    </article>
+  {% else %}
+    <div class="table-container mb-5">
+      <table class="table is-fullwidth is-striped is-hoverable">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+            <tr>
+              <td>
+                {{ user.name }}
+                {% if user.is_admin %}
+                  <span class="tag is-dark ml-2">Admin</span>
+                {% endif %}
+              </td>
+              <td>{{ user.email }}</td>
+              <td>
+                <form action="/user/role/{{user.id}}" method="post" class="field has-addons mb-0">
+                  <input type="hidden" name="_method" value="put" />
+                  <div class="control">
+                    <div class="select is-small">
+                      <select name="role" aria-label="Role for {{ user.name }}">
+                        <option value="master_student" {% if user.role == "master_student" %}selected{% endif %}>Master student</option>
+                        <option value="phd_student" {% if user.role == "phd_student" %}selected{% endif %}>PhD student</option>
+                        <option value="prof" {% if user.role == "prof" %}selected{% endif %}>Prof</option>
+                        <option value="other" {% if user.role == "other" %}selected{% endif %}>Other</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="control">
+                    <button class="button is-small is-info is-light" type="submit">Save</button>
+                  </div>
+                </form>
+                <p class="help">Current: {{ user.role_label }}</p>
+              </td>
+              <td>
+                {% if user.is_disabled %}
+                  <span class="tag is-danger">Disabled</span>
+                {% elif user.is_approved %}
+                  <span class="tag is-success">Approved</span>
+                {% else %}
+                  <span class="tag is-warning">Pending approval</span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="buttons">
+                  {% if not user.is_approved %}
+                    <form action="/user/approve/{{user.id}}" method="post" style="display: inline;">
+                      <input type="hidden" name="_method" value="put" />
+                      <button class="button is-small is-primary" type="submit">Approve</button>
+                    </form>
+                  {% endif %}
+
+                  <form action="/user/disable/{{user.id}}" method="post" style="display: inline;">
+                    <input type="hidden" name="_method" value="put" />
+                    <input type="hidden" name="disabled" value="{% if user.is_disabled %}0{% else %}1{% endif %}" />
+                    <button class="button is-small {% if user.is_disabled %}is-success is-light{% else %}is-danger is-light{% endif %}" type="submit">
+                      {% if user.is_disabled %}Enable{% else %}Disable{% endif %}
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+
   {% if papers | length == 0 %}
     <article class="message is-success">
       <div class="message-body">No active papers to mark as discussed.</div>
@@ -51,6 +133,17 @@
               <button class="button is-primary" type="submit">Mark Discussed</button>
             </div>
           </form>
+          <div class="field is-grouped mt-2">
+            <div class="control">
+              <a class="button is-small is-info is-outlined" href="/paper/edit/{{item.paper.id}}">Edit</a>
+            </div>
+            <div class="control">
+              <form action="/paper/remove/{{item.paper.id}}" method="post" style="display: inline;">
+                <input type="hidden" name="_method" value="put" />
+                <button class="button is-small is-danger is-outlined" type="submit">Delete</button>
+              </form>
+            </div>
+          </div>
         </div>
       </div>
     </div>

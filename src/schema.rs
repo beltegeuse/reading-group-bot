@@ -5,6 +5,9 @@ table! {
         email -> Text,
         password_hash -> Text,
         is_admin -> Integer,
+        is_approved -> Integer,
+        is_disabled -> Integer,
+        role -> Text,
     }
 }
 

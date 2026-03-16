@@ -125,6 +125,40 @@ struct ContextNull {}
 struct PaperAddContext {
     flash: Option<(String, String)>,
     cookie_info: Option<CookieInfo>,
+    can_submit: bool,
+    access_message: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(crate = "rocket::serde")]
+struct PaperEditContext {
+    flash: Option<(String, String)>,
+    cookie_info: Option<CookieInfo>,
+    paper: Paper,
+    selected_venue: String,
+    venue_other: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(crate = "rocket::serde")]
+struct AdminUserInfo {
+    id: i32,
+    name: String,
+    email: String,
+    role: String,
+    role_label: String,
+    is_admin: bool,
+    is_approved: bool,
+    is_disabled: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(crate = "rocket::serde")]
+struct AdminContext {
+    flash: Option<(String, String)>,
+    papers: Vec<PaperWithUserInfo>,
+    users: Vec<AdminUserInfo>,
+    cookie_info: Option<CookieInfo>,
 }
 
 fn paper_matches_search(paper: &Paper, query: &str) -> bool {
@@ -141,6 +175,33 @@ fn paper_matches_search(paper: &Paper, query: &str) -> bool {
             .map(|year| year.to_string().contains(&query))
             .unwrap_or(false)
 }
+
+fn normalize_role(role: &str) -> Option<String> {
+    match role.trim().to_lowercase().as_str() {
+        "master_student" | "master student" | "master students" => {
+            Some("master_student".to_string())
+        }
+        "phd_student" | "phd student" | "phd students" => Some("phd_student".to_string()),
+        "prof" | "profs" | "professor" | "professors" => Some("prof".to_string()),
+        "other" => Some("other".to_string()),
+        _ => None,
+    }
+}
+
+fn role_label(role: &str) -> &'static str {
+    match role {
+        "master_student" => "Master student",
+        "phd_student" => "PhD student",
+        "prof" => "Prof",
+        _ => "Other",
+    }
+}
+
+fn can_manage_paper(login: &Login, paper: &Paper, current_user_id: i32) -> bool {
+    login.is_admin == 1 || paper.user_id == current_user_id
+}
+
+const ADMIN_CONTACT_EMAIL: &str = "adrien.gruson@etsmtl.ca";
 
 const ALLOWED_VENUES: &[&str] = &[
     "SIGGRAPH / SIGGRAPH Asia",
@@ -296,7 +357,16 @@ async fn paper_admin_discussed(
     conn: DbConn,
 ) -> Result<Template, Flash<Redirect>> {
     let cookie_info = read_cookie(jar);
-    if cookie_info.as_ref().map(|user| user.is_admin).unwrap_or(false) == false {
+    let admin_login = match &cookie_info {
+        Some(user) => Login::get(&conn, user.id).await.ok(),
+        None => None,
+    };
+    if admin_login
+        .as_ref()
+        .map(|user| user.is_admin == 1 && user.is_disabled == 0)
+        .unwrap_or(false)
+        == false
+    {
         return Err(Flash::error(
             Redirect::to("/"),
             "Only admin users can access the discussed management page.",
@@ -318,9 +388,34 @@ async fn paper_admin_discussed(
         }
         Err(_) => vec![],
     };
-    let context = PaperListContext {
+
+    let users = match Login::all(&conn).await {
+        Ok(logins) => {
+            let mut users = Vec::new();
+            for login in logins {
+                if let Some(user_id) = login.id {
+                    let role = normalize_role(&login.role).unwrap_or_else(|| "other".to_string());
+                    users.push(AdminUserInfo {
+                        id: user_id,
+                        name: login.name,
+                        email: login.email,
+                        role_label: role_label(&role).to_string(),
+                        role,
+                        is_admin: login.is_admin == 1,
+                        is_approved: login.is_approved == 1,
+                        is_disabled: login.is_disabled == 1,
+                    });
+                }
+            }
+            users
+        }
+        Err(_) => vec![],
+    };
+
+    let context = AdminContext {
         flash,
         papers,
+        users,
         cookie_info,
     };
 
@@ -328,16 +423,71 @@ async fn paper_admin_discussed(
 }
 
 #[get("/add")]
-async fn paper_add(jar: &CookieJar<'_>, flash: Option<FlashMessage<'_>>) -> Template {
+async fn paper_add(jar: &CookieJar<'_>, flash: Option<FlashMessage<'_>>, conn: DbConn) -> Template {
     let cookie_info = read_cookie(jar);
     let flash = flash.map(FlashMessage::into_inner);
-    let context = PaperAddContext { flash, cookie_info };
+    let mut can_submit = false;
+    let mut access_message = None;
+
+    match &cookie_info {
+        None => {
+            access_message = Some("You need to login before proposing new papers.".to_string());
+        }
+        Some(user) => match Login::get(&conn, user.id).await {
+            Ok(login) => {
+                if login.is_disabled == 1 {
+                    access_message = Some(format!(
+                        "Your account is disabled. Please contact {}.",
+                        ADMIN_CONTACT_EMAIL
+                    ));
+                } else if login.is_approved == 0 {
+                    access_message = Some(format!(
+                        "Your account is pending approval for paper uploads. Please contact {}.",
+                        ADMIN_CONTACT_EMAIL
+                    ));
+                } else {
+                    can_submit = true;
+                }
+            }
+            Err(_) => {
+                access_message = Some(
+                    "Could not validate your account. Please log out and log in again."
+                        .to_string(),
+                );
+            }
+        },
+    }
+    let context = PaperAddContext {
+        flash,
+        cookie_info,
+        can_submit,
+        access_message,
+    };
     Template::render("paper", &context)
 }
 
 #[derive(Debug, FromForm)]
 pub struct DiscussForm {
     pub discussed_date: String,
+}
+
+#[derive(Debug, FromForm)]
+pub struct UserDisableForm {
+    pub disabled: i32,
+}
+
+#[derive(Debug, FromForm)]
+pub struct UserRoleForm {
+    pub role: String,
+}
+
+#[derive(Debug, FromForm)]
+pub struct PaperEditForm {
+    pub title: String,
+    pub link: Option<String>,
+    pub venue: String,
+    pub venue_other: Option<String>,
+    pub year: i32,
 }
 
 #[derive(Debug, FromForm)]
@@ -364,6 +514,36 @@ async fn paper_add_post(
         );
     }
     let cookie_info = cookie_info.unwrap();
+
+    let login = match Login::get(&conn, cookie_info.id).await {
+        Ok(login) => login,
+        Err(_) => {
+            return Flash::error(
+                Redirect::to("/paper/add"),
+                "Could not validate your account. Please log in again.",
+            )
+        }
+    };
+
+    if login.is_disabled == 1 {
+        return Flash::error(
+            Redirect::to("/paper/add"),
+            format!(
+                "Your account is disabled. Please contact {}.",
+                ADMIN_CONTACT_EMAIL
+            ),
+        );
+    }
+
+    if login.is_approved == 0 {
+        return Flash::error(
+            Redirect::to("/paper/add"),
+            format!(
+                "Your account is pending approval for paper uploads. Please contact {}.",
+                ADMIN_CONTACT_EMAIL
+            ),
+        );
+    }
 
     let paper_form = paper_form.into_inner();
     let upload_too_large = paper_form.context.status() == Status::PayloadTooLarge
@@ -553,6 +733,217 @@ async fn paper_add_post(
     }
 }
 
+#[get("/edit/<id>")]
+async fn paper_edit(
+    jar: &CookieJar<'_>,
+    flash: Option<FlashMessage<'_>>,
+    conn: DbConn,
+    id: i32,
+) -> Result<Template, Flash<Redirect>> {
+    let cookie_info = read_cookie(jar);
+    let flash = flash.map(FlashMessage::into_inner);
+
+    let cookie_info = match cookie_info {
+        Some(cookie_info) => cookie_info,
+        None => {
+            return Err(Flash::error(
+                Redirect::to("/"),
+                "Please log in before editing papers.",
+            ))
+        }
+    };
+
+    let login = match Login::get(&conn, cookie_info.id).await {
+        Ok(login) => login,
+        Err(_) => {
+            return Err(Flash::error(
+                Redirect::to("/"),
+                "Could not validate your account. Please log in again.",
+            ))
+        }
+    };
+
+    if login.is_disabled == 1 {
+        return Err(Flash::error(
+            Redirect::to("/"),
+            format!(
+                "Your account is disabled. Please contact {}.",
+                ADMIN_CONTACT_EMAIL
+            ),
+        ));
+    }
+
+    let paper = match Paper::get(&conn, id).await {
+        Ok(paper) => paper,
+        Err(_) => {
+            return Err(Flash::error(
+                Redirect::to("/"),
+                "Paper not found.",
+            ))
+        }
+    };
+
+    if !can_manage_paper(&login, &paper, cookie_info.id) {
+        return Err(Flash::error(
+            Redirect::to("/"),
+            "Only the proposer or an admin can edit this paper.",
+        ));
+    }
+
+    let venue_value = paper.venue.clone().unwrap_or_default();
+    let (selected_venue, venue_other) = if ALLOWED_VENUES
+        .iter()
+        .any(|allowed_venue| *allowed_venue == venue_value.as_str())
+    {
+        (venue_value, String::new())
+    } else if venue_value.is_empty() {
+        ("Other".to_string(), String::new())
+    } else {
+        ("Other".to_string(), venue_value)
+    };
+
+    let context = PaperEditContext {
+        flash,
+        cookie_info: Some(cookie_info),
+        paper,
+        selected_venue,
+        venue_other,
+    };
+
+    Ok(Template::render("paper_edit", &context))
+}
+
+#[post("/edit/<id>", data = "<paper_form>")]
+async fn paper_edit_post(
+    jar: &CookieJar<'_>,
+    conn: DbConn,
+    id: i32,
+    paper_form: Form<PaperEditForm>,
+) -> Flash<Redirect> {
+    let cookie_info = read_cookie(jar);
+    if cookie_info.is_none() {
+        return Flash::error(
+            Redirect::to("/"),
+            "Please log in before editing papers.",
+        );
+    }
+    let cookie_info = cookie_info.unwrap();
+
+    let login = match Login::get(&conn, cookie_info.id).await {
+        Ok(login) => login,
+        Err(_) => {
+            return Flash::error(
+                Redirect::to("/"),
+                "Could not validate your account. Please log in again.",
+            )
+        }
+    };
+
+    if login.is_disabled == 1 {
+        return Flash::error(
+            Redirect::to("/"),
+            format!(
+                "Your account is disabled. Please contact {}.",
+                ADMIN_CONTACT_EMAIL
+            ),
+        );
+    }
+
+    let paper = match Paper::get(&conn, id).await {
+        Ok(paper) => paper,
+        Err(_) => return Flash::error(Redirect::to("/"), "Paper not found."),
+    };
+
+    if !can_manage_paper(&login, &paper, cookie_info.id) {
+        return Flash::error(
+            Redirect::to("/"),
+            "Only the proposer or an admin can edit this paper.",
+        );
+    }
+
+    let mut paper_form = paper_form.into_inner();
+
+    let title = paper_form.title.trim().to_string();
+    if title.is_empty() {
+        return Flash::error(
+            Redirect::to(format!("/paper/edit/{}", id)),
+            "Title cannot be empty.",
+        );
+    }
+
+    let link = paper_form
+        .link
+        .take()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+
+    let selected_venue = paper_form.venue.trim().to_string();
+    if selected_venue.is_empty() {
+        return Flash::error(
+            Redirect::to(format!("/paper/edit/{}", id)),
+            "Venue must be selected.",
+        );
+    }
+    let venue = if selected_venue == "Other" {
+        let venue_other = paper_form
+            .venue_other
+            .take()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty());
+
+        if venue_other.is_none() {
+            return Flash::error(
+                Redirect::to(format!("/paper/edit/{}", id)),
+                "Please specify the venue when selecting Other.",
+            );
+        }
+
+        venue_other
+    } else if ALLOWED_VENUES
+        .iter()
+        .any(|allowed_venue| *allowed_venue == selected_venue.as_str())
+    {
+        Some(selected_venue)
+    } else {
+        return Flash::error(
+            Redirect::to(format!("/paper/edit/{}", id)),
+            "Invalid venue selection.",
+        );
+    };
+
+    if !(1900..=2100).contains(&paper_form.year) {
+        return Flash::error(
+            Redirect::to(format!("/paper/edit/{}", id)),
+            "Publication year must be between 1900 and 2100.",
+        );
+    }
+    let publication_year = Some(paper_form.year);
+
+    if let Err(e) = Paper::update_fields(
+        &conn,
+        id,
+        title,
+        link.clone().unwrap_or_default(),
+        venue,
+        publication_year,
+    )
+    .await
+    {
+        error_!("paper update error: {}", e);
+        Flash::error(
+            Redirect::to(format!("/paper/edit/{}", id)),
+            "Could not update paper due to an internal error.",
+        )
+    } else {
+        let redirect_target = if login.is_admin == 1 {
+            "/paper/admin"
+        } else {
+            "/"
+        };
+        Flash::success(Redirect::to(redirect_target), "Paper updated successfully.")
+    }
+}
+
 #[put("/discuss/<id>", data = "<discuss_form>")]
 async fn paper_mark_discussed(
     jar: &CookieJar<'_>,
@@ -561,7 +952,16 @@ async fn paper_mark_discussed(
     discuss_form: Form<DiscussForm>,
 ) -> Flash<Redirect> {
     let cookie_info = read_cookie(jar);
-    if cookie_info.as_ref().map(|user| user.is_admin).unwrap_or(false) == false {
+    let admin_login = match &cookie_info {
+        Some(user) => Login::get(&conn, user.id).await.ok(),
+        None => None,
+    };
+    if admin_login
+        .as_ref()
+        .map(|user| user.is_admin == 1 && user.is_disabled == 0)
+        .unwrap_or(false)
+        == false
+    {
         return Flash::error(
             Redirect::to("/"),
             "Only admin users can mark a paper as discussed.",
@@ -587,6 +987,128 @@ async fn paper_mark_discussed(
     }
 }
 
+#[put("/approve/<id>")]
+async fn user_approve(jar: &CookieJar<'_>, conn: DbConn, id: i32) -> Flash<Redirect> {
+    let cookie_info = read_cookie(jar);
+    let admin_login = match &cookie_info {
+        Some(user) => Login::get(&conn, user.id).await.ok(),
+        None => None,
+    };
+    if admin_login
+        .as_ref()
+        .map(|user| user.is_admin == 1 && user.is_disabled == 0)
+        .unwrap_or(false)
+        == false
+    {
+        return Flash::error(
+            Redirect::to("/"),
+            "Only admin users can approve user accounts.",
+        );
+    }
+
+    match Login::approve(&conn, id).await {
+        Ok(updated_rows) if updated_rows > 0 => {
+            Flash::success(Redirect::to("/paper/admin"), "User approved successfully.")
+        }
+        _ => Flash::error(Redirect::to("/paper/admin"), "Could not approve user account."),
+    }
+}
+
+#[put("/disable/<id>", data = "<disable_form>")]
+async fn user_set_disabled(
+    jar: &CookieJar<'_>,
+    conn: DbConn,
+    id: i32,
+    disable_form: Form<UserDisableForm>,
+) -> Flash<Redirect> {
+    let cookie_info = read_cookie(jar);
+    let admin_login = match &cookie_info {
+        Some(user) => Login::get(&conn, user.id).await.ok(),
+        None => None,
+    };
+    if admin_login
+        .as_ref()
+        .map(|user| user.is_admin == 1 && user.is_disabled == 0)
+        .unwrap_or(false)
+        == false
+    {
+        return Flash::error(
+            Redirect::to("/"),
+            "Only admin users can disable or enable user accounts.",
+        );
+    }
+
+    let cookie_info = cookie_info.unwrap();
+    let disabled = if disable_form.into_inner().disabled == 1 {
+        1
+    } else {
+        0
+    };
+
+    if disabled == 1 && id == cookie_info.id {
+        return Flash::error(
+            Redirect::to("/paper/admin"),
+            "You cannot disable your own account.",
+        );
+    }
+
+    match Login::set_disabled(&conn, id, disabled).await {
+        Ok(updated_rows) if updated_rows > 0 => {
+            if disabled == 1 {
+                Flash::success(Redirect::to("/paper/admin"), "User disabled successfully.")
+            } else {
+                Flash::success(Redirect::to("/paper/admin"), "User enabled successfully.")
+            }
+        }
+        _ => Flash::error(
+            Redirect::to("/paper/admin"),
+            "Could not update user status.",
+        ),
+    }
+}
+
+#[put("/role/<id>", data = "<role_form>")]
+async fn user_set_role(
+    jar: &CookieJar<'_>,
+    conn: DbConn,
+    id: i32,
+    role_form: Form<UserRoleForm>,
+) -> Flash<Redirect> {
+    let cookie_info = read_cookie(jar);
+    let admin_login = match &cookie_info {
+        Some(user) => Login::get(&conn, user.id).await.ok(),
+        None => None,
+    };
+    if admin_login
+        .as_ref()
+        .map(|user| user.is_admin == 1 && user.is_disabled == 0)
+        .unwrap_or(false)
+        == false
+    {
+        return Flash::error(
+            Redirect::to("/"),
+            "Only admin users can edit user roles.",
+        );
+    }
+
+    let role = match normalize_role(&role_form.into_inner().role) {
+        Some(role) => role,
+        None => {
+            return Flash::error(
+                Redirect::to("/paper/admin"),
+                "Invalid role value. Allowed roles: master student, PhD student, prof, other.",
+            )
+        }
+    };
+
+    match Login::set_role(&conn, id, role).await {
+        Ok(updated_rows) if updated_rows > 0 => {
+            Flash::success(Redirect::to("/paper/admin"), "User role updated successfully.")
+        }
+        _ => Flash::error(Redirect::to("/paper/admin"), "Could not update user role."),
+    }
+}
+
 #[put("/remove/<id>")]
 async fn paper_remove(jar: &CookieJar<'_>, conn: DbConn, id: i32) -> Flash<Redirect> {
     let cookie_info = read_cookie(jar);
@@ -598,26 +1120,59 @@ async fn paper_remove(jar: &CookieJar<'_>, conn: DbConn, id: i32) -> Flash<Redir
     }
     let cookie_info = cookie_info.unwrap();
 
+    let login = match Login::get(&conn, cookie_info.id).await {
+        Ok(login) => login,
+        Err(_) => {
+            return Flash::error(
+                Redirect::to("/"),
+                "Could not validate your account. Please log in again.",
+            )
+        }
+    };
+    if login.is_disabled == 1 {
+        return Flash::error(
+            Redirect::to("/"),
+            format!(
+                "Your account is disabled. Please contact {}.",
+                ADMIN_CONTACT_EMAIL
+            ),
+        );
+    }
+
+    let redirect_target = if login.is_admin == 1 {
+        "/paper/admin"
+    } else {
+        "/"
+    };
+
     match Paper::get(&conn, id).await {
         Err(e) => {
             error_!("remove paper: {}", e);
             Flash::error(Redirect::to("/"), "Impossible to retrive paper")
         }
         Ok(paper) => {
-            if paper.user_id == cookie_info.id {
-                let pdf_file = paper.pdf_file.clone();
-                let thumbnail = paper.thumbnail.clone();
-                // We allow to remove it
-                let _ = Vote::remove_for_paper(&conn, id).await;
-                let _ = Paper::remove(&conn, id).await;
-                if let Some(pdf_file) = pdf_file {
-                    let _ = fs::remove_file(format!("static/pdfs/{}", pdf_file));
-                }
-                if let Some(thumbnail) = thumbnail {
-                    let _ = fs::remove_file(format!("static/thumbnails/{}", thumbnail));
-                }
+            if !can_manage_paper(&login, &paper, cookie_info.id) {
+                return Flash::error(
+                    Redirect::to(redirect_target),
+                    "Only the proposer or an admin can remove this paper.",
+                );
             }
-            Flash::success(Redirect::to("/"), format!("Paper removed: {}", id))
+
+            let pdf_file = paper.pdf_file.clone();
+            let thumbnail = paper.thumbnail.clone();
+            let _ = Vote::remove_for_paper(&conn, id).await;
+            if let Err(e) = Paper::remove(&conn, id).await {
+                error_!("remove paper db error: {}", e);
+                return Flash::error(Redirect::to(redirect_target), "Could not remove paper.");
+            }
+            if let Some(pdf_file) = pdf_file {
+                let _ = fs::remove_file(format!("static/pdfs/{}", pdf_file));
+            }
+            if let Some(thumbnail) = thumbnail {
+                let _ = fs::remove_file(format!("static/thumbnails/{}", thumbnail));
+            }
+
+            Flash::success(Redirect::to(redirect_target), format!("Paper removed: {}", id))
         }
     }
 }
@@ -629,6 +1184,25 @@ async fn paper_vote_up(jar: &CookieJar<'_>, conn: DbConn, id: i32) -> Flash<Redi
         return Flash::error(Redirect::to("/"), "Impossible to vote without login");
     }
     let cookie_info = cookie_info.unwrap();
+
+    let login = match Login::get(&conn, cookie_info.id).await {
+        Ok(login) => login,
+        Err(_) => {
+            return Flash::error(
+                Redirect::to("/"),
+                "Could not validate your account. Please log in again.",
+            )
+        }
+    };
+    if login.is_disabled == 1 {
+        return Flash::error(
+            Redirect::to("/"),
+            format!(
+                "Your account is disabled. Please contact {}.",
+                ADMIN_CONTACT_EMAIL
+            ),
+        );
+    }
 
     let res = Vote::up(&conn, cookie_info.id, id).await;
     if res {
@@ -644,6 +1218,25 @@ async fn paper_vote_down(jar: &CookieJar<'_>, conn: DbConn, id: i32) -> Flash<Re
         return Flash::error(Redirect::to("/"), "Impossible to vote without login");
     }
     let cookie_info = cookie_info.unwrap();
+
+    let login = match Login::get(&conn, cookie_info.id).await {
+        Ok(login) => login,
+        Err(_) => {
+            return Flash::error(
+                Redirect::to("/"),
+                "Could not validate your account. Please log in again.",
+            )
+        }
+    };
+    if login.is_disabled == 1 {
+        return Flash::error(
+            Redirect::to("/"),
+            format!(
+                "Your account is disabled. Please contact {}.",
+                ADMIN_CONTACT_EMAIL
+            ),
+        );
+    }
 
     let res = Vote::down(&conn, cookie_info.id, id).await;
     if res {
@@ -692,6 +1285,15 @@ async fn user_login_post(
             for l in logins {
                 if l.name == login.name {
                     if l.password_hash == pwd_hash {
+                        if l.is_disabled == 1 {
+                            return Flash::error(
+                                Redirect::to("/"),
+                                format!(
+                                    "Your account is disabled. Please contact {}.",
+                                    ADMIN_CONTACT_EMAIL
+                                ),
+                            );
+                        }
                         jar.add_private(Cookie::new("user_id", l.id.unwrap().to_string()));
                         jar.add_private(Cookie::new("name", l.name.clone()));
                         jar.add_private(Cookie::new("is_admin", l.is_admin.to_string()));
@@ -720,6 +1322,7 @@ pub struct RegisterForm {
     pub name: String,
     pub email: String,
     pub password: String,
+    pub role: String,
 }
 #[get("/register")]
 fn user_register() -> Template {
@@ -730,6 +1333,25 @@ fn user_register() -> Template {
 async fn user_register_post(conn: DbConn, register_form: Form<RegisterForm>) -> Flash<Redirect> {
     // Check the entry
     let register = register_form.into_inner();
+    let name = register.name.trim().to_string();
+    let email = register.email.trim().to_string();
+    let role = match normalize_role(&register.role) {
+        Some(role) => role,
+        None => {
+            return Flash::error(
+                Redirect::to("/"),
+                "Role must be one of master student, PhD student, prof, or other.",
+            )
+        }
+    };
+
+    let register = RegisterForm {
+        name,
+        email,
+        password: register.password,
+        role,
+    };
+
     if register.name.is_empty() {
         return Flash::error(Redirect::to("/"), "Name cannot be empty.");
     }
@@ -769,7 +1391,13 @@ async fn user_register_post(conn: DbConn, register_form: Form<RegisterForm>) -> 
             "User could not be inserted due an internal error.",
         )
     } else {
-        Flash::success(Redirect::to("/"), "User successfully added.")
+        Flash::success(
+            Redirect::to("/"),
+            format!(
+                "User successfully added. Please contact {} so an admin can approve your account for paper uploads.",
+                ADMIN_CONTACT_EMAIL
+            ),
+        )
     }
 }
 
@@ -804,6 +1432,8 @@ fn rocket() -> _ {
             routes![
                 paper_add,
                 paper_add_post,
+                paper_edit,
+                paper_edit_post,
                 paper_remove,
                 paper_vote_up,
                 paper_vote_down,
@@ -820,6 +1450,9 @@ fn rocket() -> _ {
                 user_login_post,
                 user_register,
                 user_register_post,
+                user_approve,
+                user_set_disabled,
+                user_set_role,
                 user_logout
             ],
         )

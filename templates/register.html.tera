@@ -4,6 +4,13 @@
 <div class="box" style="max-width: 400px; margin: 0 auto;">
   <h2 class="title">Register</h2>
 
+  <article class="message is-info">
+    <div class="message-body">
+      Accounts must be approved by an admin before uploading PDFs and proposing papers.
+      After registering, please contact <strong>adrien.gruson@etsmtl.ca</strong>.
+    </div>
+  </article>
+
   <form action="register" method="post">
     <div class="field">
       <label class="label">Username</label>
@@ -33,6 +40,20 @@
         <span class="icon is-left">
           <i class="fas fa-envelope"></i>
         </span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="label">Role</label>
+      <div class="control">
+        <div class="select is-fullwidth">
+          <select name="role" id="role" required>
+            <option value="master_student">Master student</option>
+            <option value="phd_student">PhD student</option>
+            <option value="prof">Prof</option>
+            <option value="other" selected>Other</option>
+          </select>
+        </div>
       </div>
     </div>
 
