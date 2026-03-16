@@ -1,0 +1,89 @@
+{% extends "base" %}
+
+{% block content %}
+  {% if flash %}
+  <div class="notification is-{{flash.0}}">
+    <button class="delete"></button>
+    {{ flash.1 }}
+  </div>
+  {% endif %}
+
+  <h1 class="title">Schedule</h1>
+  <p class="subtitle">Upcoming selected sessions and previously discussed papers with role assignments.</p>
+
+  <h2 class="title is-4 mt-5">Upcoming Sessions</h2>
+  {% if selected_papers | length == 0 %}
+    <article class="message is-info">
+      <div class="message-body">No papers currently selected.</div>
+    </article>
+  {% else %}
+    {% for item in selected_papers %}
+      <div class="box mb-4">
+        <p class="mb-2">
+          {% if item.paper.pdf_file %}
+            <a href="/pdfs/{{item.paper.pdf_file}}" target="_blank"><strong>{{ item.paper.title }}</strong></a>
+          {% elif item.paper.url %}
+            <a href="{{item.paper.url}}" target="_blank"><strong>{{ item.paper.title }}</strong></a>
+          {% else %}
+            <strong>{{ item.paper.title }}</strong>
+          {% endif %}
+        </p>
+        <p class="mb-2">
+          {% if item.paper.venue %}
+            <span class="tag">{{ item.paper.venue }}</span>
+          {% endif %}
+          {% if item.paper.publication_year %}
+            <span class="tag is-info">{{ item.paper.publication_year }}</span>
+          {% endif %}
+          <span class="tag is-link is-light">Votes {{ item.paper.vote_count }}</span>
+          <span class="tag is-warning is-light">Selected</span>
+        </p>
+        <div class="content is-small">
+          <ul>
+            {% for role in item.roles %}
+              <li><strong>{{ role.role_label }}</strong>: {{ role.user_name }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <h2 class="title is-4 mt-5">Past Sessions</h2>
+  {% if discussed_papers | length == 0 %}
+    <article class="message is-warning">
+      <div class="message-body">No discussed papers yet.</div>
+    </article>
+  {% else %}
+    {% for item in discussed_papers %}
+      <div class="box mb-4">
+        <p class="mb-2">
+          {% if item.paper.pdf_file %}
+            <a href="/pdfs/{{item.paper.pdf_file}}" target="_blank"><strong>{{ item.paper.title }}</strong></a>
+          {% elif item.paper.url %}
+            <a href="{{item.paper.url}}" target="_blank"><strong>{{ item.paper.title }}</strong></a>
+          {% else %}
+            <strong>{{ item.paper.title }}</strong>
+          {% endif %}
+        </p>
+        <p class="mb-2">
+          {% if item.paper.venue %}
+            <span class="tag">{{ item.paper.venue }}</span>
+          {% endif %}
+          {% if item.paper.publication_year %}
+            <span class="tag is-info">{{ item.paper.publication_year }}</span>
+          {% endif %}
+          <span class="tag is-success is-light">Discussed {{ item.paper.discussed_at }}</span>
+          <span class="tag is-link is-light">Votes {{ item.paper.vote_count }}</span>
+        </p>
+        <div class="content is-small">
+          <ul>
+            {% for role in item.roles %}
+              <li><strong>{{ role.role_label }}</strong>: {{ role.user_name }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endblock content %}

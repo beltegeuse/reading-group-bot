@@ -8,6 +8,7 @@ use rocket::serde::Serialize;
 
 // For interacting with the database
 use crate::schema::logins::dsl::logins as all_logins;
+use crate::schema::paper_roles::dsl::paper_roles as all_paper_roles;
 use crate::schema::papers::dsl::papers as all_papers;
 use crate::schema::votes::dsl::votes as all_votes;
 use crate::schema::*;
@@ -140,6 +141,7 @@ pub struct Paper {
     pub added_at: String,
     pub discussed_at: Option<String>,
     pub presenter_id: Option<i32>,
+    pub is_selected: i32, // 0 = not selected, 1 = selected for next session
 }
 
 impl Paper {
@@ -211,6 +213,49 @@ impl Paper {
         .await
     }
 
+    pub async fn all_active_not_selected(conn: &DbConn) -> QueryResult<Vec<Paper>> {
+        conn.run(|c| {
+            all_papers
+                .order(papers::vote_count.desc())
+                .filter(papers::readed.eq(0))
+                .filter(papers::discussed_at.is_null())
+                .filter(papers::is_selected.eq(0))
+                .load::<Paper>(c)
+        })
+        .await
+    }
+
+    pub async fn all_selected(conn: &DbConn) -> QueryResult<Vec<Paper>> {
+        conn.run(|c| {
+            all_papers
+                .order(papers::added_at.asc())
+                .filter(papers::readed.eq(0))
+                .filter(papers::is_selected.eq(1))
+                .load::<Paper>(c)
+        })
+        .await
+    }
+
+    pub async fn mark_selected(conn: &DbConn, paper_id: i32) -> QueryResult<usize> {
+        conn.run(move |c| {
+            diesel::update(all_papers)
+                .filter(papers::id.eq(paper_id))
+                .set(papers::is_selected.eq(1))
+                .execute(c)
+        })
+        .await
+    }
+
+    pub async fn unselect(conn: &DbConn, paper_id: i32) -> QueryResult<usize> {
+        conn.run(move |c| {
+            diesel::update(all_papers)
+                .filter(papers::id.eq(paper_id))
+                .set(papers::is_selected.eq(0))
+                .execute(c)
+        })
+        .await
+    }
+
     pub async fn all_discussed(conn: &DbConn) -> QueryResult<Vec<Paper>> {
         conn.run(|c| {
             all_papers
@@ -262,6 +307,7 @@ impl Paper {
                     papers::readed.eq(1),
                     papers::discussed_at.eq(Some(discussed_date)),
                     papers::presenter_id.eq(presenter_id),
+                    papers::is_selected.eq(0),
                 ))
                 .execute(c)
         })
@@ -410,6 +456,7 @@ pub struct Vote {
     pub user_id: i32,
     pub value: i32,
 }
+
 impl Vote {
     pub async fn remove_for_paper(conn: &DbConn, paper_id: i32) -> bool {
         conn.run(move |c| {
@@ -582,4 +629,151 @@ impl Vote {
             changed
         }
     }
+}
+
+////////////// Session Roles
+pub const SESSION_ROLES: &[&str] = &[
+    "reviewer_friendly",
+    "reviewer_adversarial",
+    "archaeologist",
+    "futurist",
+];
+
+#[derive(Queryable, Insertable, Debug, Serialize, Clone)]
+#[serde(crate = "rocket::serde")]
+pub struct PaperRole {
+    pub id: Option<i32>,
+    pub paper_id: i32,
+    pub user_id: i32,
+    pub role_name: String,
+}
+
+impl PaperRole {
+    pub async fn for_paper(conn: &DbConn, paper_id: i32) -> QueryResult<Vec<PaperRole>> {
+        conn.run(move |c| {
+            all_paper_roles
+                .filter(paper_roles::paper_id.eq(paper_id))
+                .load::<PaperRole>(c)
+        })
+        .await
+    }
+
+    /// Replace all role assignments for a paper with the given list of (role_name, user_id).
+    pub async fn assign(
+        conn: &DbConn,
+        paper_id: i32,
+        assignments: Vec<(String, i32)>,
+    ) -> QueryResult<()> {
+        conn.run(move |c| {
+            diesel::delete(all_paper_roles)
+                .filter(paper_roles::paper_id.eq(paper_id))
+                .execute(c)?;
+            for (role_name, user_id) in assignments {
+                let entry = PaperRole {
+                    id: None,
+                    paper_id,
+                    user_id,
+                    role_name,
+                };
+                diesel::insert_into(paper_roles::table)
+                    .values(&entry)
+                    .execute(c)?;
+            }
+            Ok(())
+        })
+        .await
+    }
+
+    /// Delete all role assignments for a paper (used when a paper is removed).
+    pub async fn remove_for_paper(conn: &DbConn, paper_id: i32) -> QueryResult<usize> {
+        conn.run(move |c| {
+            diesel::delete(all_paper_roles)
+                .filter(paper_roles::paper_id.eq(paper_id))
+                .execute(c)
+        })
+        .await
+    }
+
+    /// Count how many times each active user has played each role across all discussed papers.
+    /// Returns HashMap<(user_id, role_name), count>.
+    pub async fn role_counts_for_discussed(conn: &DbConn) -> HashMap<(i32, String), usize> {
+        let discussed_paper_ids: Vec<i32> = conn
+            .run(|c| {
+                all_papers
+                    .filter(papers::discussed_at.is_not_null())
+                    .select(papers::id)
+                    .load::<Option<i32>>(c)
+            })
+            .await
+            .unwrap_or_default()
+            .into_iter()
+            .flatten()
+            .collect();
+
+        if discussed_paper_ids.is_empty() {
+            return HashMap::new();
+        }
+
+        let roles: Vec<PaperRole> = conn
+            .run(move |c| {
+                all_paper_roles
+                    .filter(paper_roles::paper_id.eq_any(discussed_paper_ids))
+                    .load::<PaperRole>(c)
+            })
+            .await
+            .unwrap_or_default();
+
+        let mut counts: HashMap<(i32, String), usize> = HashMap::new();
+        for r in roles {
+            *counts.entry((r.user_id, r.role_name)).or_insert(0) += 1;
+        }
+        counts
+    }
+}
+
+/// For a paper with the given proposer_id, suggest the most fair assignment of the four
+/// assignable roles from the pool of eligible users (approved, not disabled, not the proposer).
+/// Returns a HashMap<role_name, user_id>. If no eligible users exist the map may be empty.
+pub fn auto_suggest_roles(
+    role_counts: &HashMap<(i32, String), usize>,
+    eligible_users: &[Login],
+    proposer_id: i32,
+) -> HashMap<String, i32> {
+    let mut result = HashMap::new();
+    let pool: Vec<&Login> = eligible_users
+        .iter()
+        .filter(|u| u.id != Some(proposer_id) && u.is_approved == 1 && u.is_disabled == 0)
+        .collect();
+
+    if pool.is_empty() {
+        return result;
+    }
+
+    // Track which users have already been assigned in this session to avoid duplicates.
+    let mut assigned: Vec<i32> = Vec::new();
+
+    for &role in SESSION_ROLES {
+        // Pick the eligible user (not yet assigned this session) with the fewest plays.
+        let best = pool
+            .iter()
+            .filter(|u| {
+                let uid = u.id.unwrap_or(-1);
+                !assigned.contains(&uid)
+            })
+            .min_by_key(|u| {
+                let uid = u.id.unwrap_or(-1);
+                role_counts
+                    .get(&(uid, role.to_string()))
+                    .copied()
+                    .unwrap_or(0)
+            });
+
+        if let Some(user) = best {
+            let uid = user.id.unwrap_or(-1);
+            result.insert(role.to_string(), uid);
+            assigned.push(uid);
+        }
+    }
+
+    result
 }

@@ -8,8 +8,8 @@
   </div>
   {% endif %}
 
-  <h1 class="title">Admin · Mark Discussed</h1>
-  <p class="subtitle">Only admin users can mark papers as discussed.</p>
+  <h1 class="title">Admin · Session Planning</h1>
+  <p class="subtitle">Select a paper, assign roles, review assignments, then mark it discussed.</p>
 
   <h2 class="title is-4 mt-5">User Management</h2>
   <p class="subtitle is-6">Approve users for paper uploads and disable or re-enable accounts.</p>
@@ -99,9 +99,108 @@
     </div>
   {% endif %}
 
+  <h2 class="title is-4 mt-5">Selected Papers</h2>
+  <p class="subtitle is-6">These papers are scheduled next. Assign all roles and then mark discussed.</p>
+
+  {% if selected_papers | length == 0 %}
+    <article class="message is-info">
+      <div class="message-body">No selected papers yet. Pick one from the queue below.</div>
+    </article>
+  {% endif %}
+
+  {% for item in selected_papers %}
+    <div class="box mb-4">
+      <div class="columns is-multiline">
+        <div class="column is-7">
+          <p>
+            {% if item.paper.pdf_file %}
+              <a href="/pdfs/{{item.paper.pdf_file}}" target="_blank"><strong>{{ item.paper.title }}</strong></a>
+            {% elif item.paper.url %}
+              <a href="{{item.paper.url}}" target="_blank"><strong>{{ item.paper.title }}</strong></a>
+            {% else %}
+              <strong>{{ item.paper.title }}</strong>
+            {% endif %}
+          </p>
+          <p class="mt-2 mb-3">
+            {% if item.paper.venue %}
+              <span class="tag">{{ item.paper.venue }}</span>
+            {% endif %}
+            {% if item.paper.publication_year %}
+              <span class="tag is-info">{{ item.paper.publication_year }}</span>
+            {% endif %}
+            <span class="tag is-link is-light">Votes {{ item.paper.vote_count }}</span>
+            <span class="tag is-grey is-light">Investigator {{ item.proposer_name }}</span>
+          </p>
+
+          <form action="/paper/roles/{{item.paper.id}}" method="post">
+            <input type="hidden" name="_method" value="put" />
+            <div class="columns is-multiline">
+              {% for role in item.roles %}
+                <div class="column is-half">
+                  <label class="label" for="role-{{ item.paper.id }}-{{ role.role_name }}">{{ role.role_label }}</label>
+                  <div class="select is-fullwidth">
+                    <select
+                      id="role-{{ item.paper.id }}-{{ role.role_name }}"
+                      name="{{ role.role_name }}"
+                      aria-label="{{ role.role_label }} assignment for {{ item.paper.title }}"
+                      required>
+                      <option value="" disabled {% if not role.assigned_user_id and not role.suggested_user_id %}selected{% endif %}>Select user</option>
+                      {% for user in users %}
+                        {% if user.is_approved and not user.is_disabled and user.id != item.paper.user_id %}
+                          <option
+                            value="{{ user.id }}"
+                            {% if role.assigned_user_id and role.assigned_user_id == user.id %}selected{% elif (not role.assigned_user_id) and role.suggested_user_id and role.suggested_user_id == user.id %}selected{% endif %}>
+                            {{ user.name }}
+                          </option>
+                        {% endif %}
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+            <div class="field is-grouped mt-2">
+              <div class="control">
+                <button class="button is-info" type="submit">Save Role Assignments</button>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <div class="column is-5">
+          <label class="label">Finalize Session</label>
+          <form action="/paper/discuss/{{item.paper.id}}" method="post" class="field is-grouped">
+            <input type="hidden" name="_method" value="put" />
+            <div class="control is-expanded">
+              <input class="input" type="date" name="discussed_date" required>
+            </div>
+            <div class="control">
+              <button class="button is-primary" type="submit">Mark Discussed</button>
+            </div>
+          </form>
+
+          <div class="field is-grouped mt-2">
+            <div class="control">
+              <a class="button is-small is-info is-outlined" href="/paper/edit/{{item.paper.id}}">Edit</a>
+            </div>
+            <div class="control">
+              <form action="/paper/remove/{{item.paper.id}}" method="post" style="display: inline;">
+                <input type="hidden" name="_method" value="put" />
+                <button class="button is-small is-danger is-outlined" type="submit">Delete</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+
+  <h2 class="title is-4 mt-5">Paper Queue</h2>
+  <p class="subtitle is-6">Select one of these papers to prepare the next session.</p>
+
   {% if papers | length == 0 %}
     <article class="message is-success">
-      <div class="message-body">No active papers to mark as discussed.</div>
+      <div class="message-body">No unselected papers in queue.</div>
     </article>
   {% endif %}
 
@@ -130,28 +229,13 @@
           </p>
         </div>
         <div class="column is-narrow">
-          <form action="/paper/discuss/{{item.paper.id}}" method="post" class="field is-grouped is-grouped-multiline">
-            <input type="hidden" name="_method" value="put" />
+          <div class="field is-grouped is-grouped-right">
             <div class="control">
-              <input class="input" type="date" name="discussed_date" required>
+              <form action="/paper/select/{{item.paper.id}}" method="post" style="display: inline;">
+                <input type="hidden" name="_method" value="put" />
+                <button class="button is-primary" type="submit">Select For Session</button>
+              </form>
             </div>
-            <div class="control">
-              <div class="select">
-                <select name="presenter_id" aria-label="Presenter for {{ item.paper.title }}" required>
-                  <option value="" selected disabled>Select presenter</option>
-                  {% for presenter in users %}
-                    {% if presenter.is_approved and not presenter.is_disabled %}
-                      <option value="{{ presenter.id }}">{{ presenter.name }}</option>
-                    {% endif %}
-                  {% endfor %}
-                </select>
-              </div>
-            </div>
-            <div class="control">
-              <button class="button is-primary" type="submit">Mark Discussed</button>
-            </div>
-          </form>
-          <div class="field is-grouped mt-2">
             <div class="control">
               <a class="button is-small is-info is-outlined" href="/paper/edit/{{item.paper.id}}">Edit</a>
             </div>

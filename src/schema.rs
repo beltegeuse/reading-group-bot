@@ -27,6 +27,16 @@ table! {
         added_at -> Text,
         discussed_at -> Nullable<Text>,
         presenter_id -> Nullable<Integer>,
+        is_selected -> Integer,
+    }
+}
+
+table! {
+    paper_roles (id) {
+        id -> Nullable<Integer>,
+        paper_id -> Integer,
+        user_id -> Integer,
+        role_name -> Text,
     }
 }
 
@@ -42,5 +52,7 @@ table! {
 joinable!(papers -> logins (user_id));
 joinable!(votes -> logins (user_id));
 joinable!(votes -> papers (paper_id));
+joinable!(paper_roles -> logins (user_id));
+joinable!(paper_roles -> papers (paper_id));
 
-allow_tables_to_appear_in_same_query!(logins, papers, votes,);
+allow_tables_to_appear_in_same_query!(logins, paper_roles, papers, votes,);

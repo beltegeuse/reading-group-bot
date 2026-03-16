@@ -1,0 +1,1 @@
+-- SQLite does not support DROP COLUMN; is_selected remains as a no-op column

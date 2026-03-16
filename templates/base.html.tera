@@ -43,11 +43,11 @@
             <span>Ranking</span>
           </a>
 
-          <a class="navbar-item" href="/paper/discussed">
+          <a class="navbar-item" href="/paper/schedule">
             <span class="icon">
-              <i class="fas fa-comments"></i>
+              <i class="fas fa-calendar"></i>
             </span>
-            <span>Discussed</span>
+            <span>Schedule</span>
           </a>
 
           {% if cookie_info and cookie_info.is_admin %}

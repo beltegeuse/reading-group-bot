@@ -142,10 +142,52 @@ struct PaperEditContext {
 
 #[derive(Debug, Serialize)]
 #[serde(crate = "rocket::serde")]
+struct RoleAssignmentInfo {
+    role_name: String,
+    role_label: String,
+    assigned_user_id: Option<i32>,
+    suggested_user_id: Option<i32>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(crate = "rocket::serde")]
+struct SelectedPaperInfo {
+    paper: Paper,
+    proposer_name: String,
+    roles: Vec<RoleAssignmentInfo>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(crate = "rocket::serde")]
+struct RoleDisplay {
+    role_label: String,
+    user_name: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(crate = "rocket::serde")]
+struct DiscussedPaperWithRoles {
+    paper: Paper,
+    proposer_name: String,
+    roles: Vec<RoleDisplay>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(crate = "rocket::serde")]
 struct AdminContext {
     flash: Option<(String, String)>,
     papers: Vec<PaperWithUserInfo>,
+    selected_papers: Vec<SelectedPaperInfo>,
     users: Vec<UserWithStats>,
+    cookie_info: Option<CookieInfo>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(crate = "rocket::serde")]
+struct ScheduleContext {
+    flash: Option<(String, String)>,
+    selected_papers: Vec<DiscussedPaperWithRoles>,
+    discussed_papers: Vec<DiscussedPaperWithRoles>,
     cookie_info: Option<CookieInfo>,
 }
 
@@ -187,6 +229,64 @@ fn role_label(role: &str) -> &'static str {
 
 fn can_manage_paper(login: &Login, paper: &Paper, current_user_id: i32) -> bool {
     login.is_admin == 1 || paper.user_id == current_user_id
+}
+
+fn session_role_label(role: &str) -> &str {
+    match role {
+        "reviewer_friendly" => "Friendly Reviewer",
+        "reviewer_adversarial" => "Adversarial Reviewer",
+        "archaeologist" => "Archaeologist",
+        "futurist" => "Futurist",
+        _ => role,
+    }
+}
+
+async fn build_role_display_for_paper(
+    conn: &DbConn,
+    paper: &Paper,
+    proposer_name: &str,
+) -> Vec<RoleDisplay> {
+    let mut roles = vec![RoleDisplay {
+        role_label: "Investigator".to_string(),
+        user_name: proposer_name.to_string(),
+    }];
+
+    let role_rows = PaperRole::for_paper(conn, paper.id.unwrap_or(0))
+        .await
+        .unwrap_or_default();
+    let role_map: std::collections::HashMap<String, i32> = role_rows
+        .into_iter()
+        .map(|role| (role.role_name, role.user_id))
+        .collect();
+
+    for &role_name in SESSION_ROLES {
+        if let Some(user_id) = role_map.get(role_name) {
+            let user_name = Login::get(conn, *user_id)
+                .await
+                .map(|login| login.name)
+                .unwrap_or_else(|_| "Unknown".to_string());
+            roles.push(RoleDisplay {
+                role_label: session_role_label(role_name).to_string(),
+                user_name,
+            });
+        }
+    }
+
+    roles
+}
+
+async fn build_discussed_with_roles(conn: &DbConn, paper: Paper) -> DiscussedPaperWithRoles {
+    let proposer_name = Login::get(conn, paper.user_id)
+        .await
+        .map(|login| login.name)
+        .unwrap_or_else(|_| "Unknown".to_string());
+    let roles = build_role_display_for_paper(conn, &paper, &proposer_name).await;
+
+    DiscussedPaperWithRoles {
+        paper,
+        proposer_name,
+        roles,
+    }
 }
 
 const ADMIN_CONTACT_EMAIL: &str = "adrien.gruson@etsmtl.ca";
@@ -305,39 +405,6 @@ async fn paper_ranking(
     Template::render("ranking", &context)
 }
 
-#[get("/discussed")]
-async fn paper_discussed(
-    jar: &CookieJar<'_>,
-    flash: Option<FlashMessage<'_>>,
-    conn: DbConn,
-) -> Template {
-    let cookie_info = read_cookie(jar);
-    let flash = flash.map(FlashMessage::into_inner);
-
-    let papers = match Paper::all_discussed(&conn).await {
-        Ok(papers) => {
-            let mut papers_with_username = Vec::new();
-            for paper in papers {
-                let username = match Login::get(&conn, paper.user_id).await {
-                    Ok(login) => login.name,
-                    Err(_) => "Unknown".to_string(),
-                };
-                papers_with_username.push(PaperWithUserInfo { paper, username });
-            }
-            papers_with_username
-        }
-        Err(_) => vec![],
-    };
-
-    let context = PaperListContext {
-        flash,
-        papers,
-        cookie_info,
-    };
-
-    Template::render("discussed", &context)
-}
-
 #[get("/admin")]
 async fn paper_admin_discussed(
     jar: &CookieJar<'_>,
@@ -357,12 +424,14 @@ async fn paper_admin_discussed(
     {
         return Err(Flash::error(
             Redirect::to("/"),
-            "Only admin users can access the discussed management page.",
+            "Only admin users can access the session planning page.",
         ));
     }
 
     let flash = flash.map(FlashMessage::into_inner);
-    let papers = match Paper::all_active(&conn).await {
+
+    // Active (not yet selected) papers stay in the lower section.
+    let papers = match Paper::all_active_not_selected(&conn).await {
         Ok(papers) => {
             let mut papers_with_username = Vec::new();
             for paper in papers {
@@ -377,10 +446,44 @@ async fn paper_admin_discussed(
         Err(_) => vec![],
     };
 
-    let users = match Login::all(&conn).await {
-        Ok(logins) => {
-            let all_papers_for_stats = Paper::all(&conn).await.unwrap_or_default();
-            build_users_with_stats(logins, &all_papers_for_stats)
+    let all_logins = Login::all(&conn).await.unwrap_or_default();
+    let all_papers_for_stats = Paper::all(&conn).await.unwrap_or_default();
+    let users = build_users_with_stats(all_logins.clone(), &all_papers_for_stats);
+
+    // Build selected papers with current role assignments and auto-suggestions.
+    let role_counts = PaperRole::role_counts_for_discussed(&conn).await;
+    let selected_papers = match Paper::all_selected(&conn).await {
+        Ok(sel_papers) => {
+            let mut result = Vec::new();
+            for paper in sel_papers {
+                let proposer_name = match Login::get(&conn, paper.user_id).await {
+                    Ok(l) => l.name,
+                    Err(_) => "Unknown".to_string(),
+                };
+                let current_roles = PaperRole::for_paper(&conn, paper.id.unwrap_or(0))
+                    .await
+                    .unwrap_or_default();
+                let current_map: std::collections::HashMap<String, i32> = current_roles
+                    .iter()
+                    .map(|r| (r.role_name.clone(), r.user_id))
+                    .collect();
+                let suggestions = auto_suggest_roles(&role_counts, &all_logins, paper.user_id);
+                let roles = SESSION_ROLES
+                    .iter()
+                    .map(|&r| RoleAssignmentInfo {
+                        role_name: r.to_string(),
+                        role_label: session_role_label(r).to_string(),
+                        assigned_user_id: current_map.get(r).copied(),
+                        suggested_user_id: suggestions.get(r).copied(),
+                    })
+                    .collect();
+                result.push(SelectedPaperInfo {
+                    paper,
+                    proposer_name,
+                    roles,
+                });
+            }
+            result
         }
         Err(_) => vec![],
     };
@@ -388,11 +491,53 @@ async fn paper_admin_discussed(
     let context = AdminContext {
         flash,
         papers,
+        selected_papers,
         users,
         cookie_info,
     };
 
     Ok(Template::render("admin_discussed", &context))
+}
+
+#[get("/schedule")]
+async fn paper_schedule(
+    jar: &CookieJar<'_>,
+    flash: Option<FlashMessage<'_>>,
+    conn: DbConn,
+) -> Template {
+    let cookie_info = read_cookie(jar);
+    let flash = flash.map(FlashMessage::into_inner);
+
+    let selected_papers = match Paper::all_selected(&conn).await {
+        Ok(papers) => {
+            let mut with_roles = Vec::new();
+            for paper in papers {
+                with_roles.push(build_discussed_with_roles(&conn, paper).await);
+            }
+            with_roles
+        }
+        Err(_) => vec![],
+    };
+
+    let discussed_papers = match Paper::all_discussed(&conn).await {
+        Ok(papers) => {
+            let mut with_roles = Vec::new();
+            for paper in papers {
+                with_roles.push(build_discussed_with_roles(&conn, paper).await);
+            }
+            with_roles
+        }
+        Err(_) => vec![],
+    };
+
+    let context = ScheduleContext {
+        flash,
+        selected_papers,
+        discussed_papers,
+        cookie_info,
+    };
+
+    Template::render("schedule", &context)
 }
 
 #[get("/add")]
@@ -442,6 +587,14 @@ async fn paper_add(jar: &CookieJar<'_>, flash: Option<FlashMessage<'_>>, conn: D
 pub struct DiscussForm {
     pub discussed_date: String,
     pub presenter_id: Option<i32>,
+}
+
+#[derive(Debug, FromForm)]
+pub struct RoleAssignForm {
+    pub reviewer_friendly: i32,
+    pub reviewer_adversarial: i32,
+    pub archaeologist: i32,
+    pub futurist: i32,
 }
 
 #[derive(Debug, FromForm)]
@@ -902,6 +1055,137 @@ async fn paper_edit_post(
     }
 }
 
+#[put("/select/<id>")]
+async fn paper_select(jar: &CookieJar<'_>, conn: DbConn, id: i32) -> Flash<Redirect> {
+    let cookie_info = read_cookie(jar);
+    let admin_login = match &cookie_info {
+        Some(user) => Login::get(&conn, user.id).await.ok(),
+        None => None,
+    };
+    if admin_login
+        .as_ref()
+        .map(|user| user.is_admin == 1 && user.is_disabled == 0)
+        .unwrap_or(false)
+        == false
+    {
+        return Flash::error(
+            Redirect::to("/"),
+            "Only admin users can select a paper for session roles.",
+        );
+    }
+
+    let paper = match Paper::get(&conn, id).await {
+        Ok(paper) => paper,
+        Err(_) => return Flash::error(Redirect::to("/paper/admin"), "Paper not found."),
+    };
+
+    if paper.readed == 1 || paper.discussed_at.is_some() {
+        return Flash::error(
+            Redirect::to("/paper/admin"),
+            "Cannot select a paper that has already been discussed.",
+        );
+    }
+
+    match Paper::mark_selected(&conn, id).await {
+        Ok(updated_rows) if updated_rows > 0 => Flash::success(
+            Redirect::to("/paper/admin"),
+            "Paper selected. Assign and review the roles before discussion.",
+        ),
+        _ => Flash::error(Redirect::to("/paper/admin"), "Could not select paper."),
+    }
+}
+
+#[put("/roles/<id>", data = "<role_form>")]
+async fn paper_assign_roles(
+    jar: &CookieJar<'_>,
+    conn: DbConn,
+    id: i32,
+    role_form: Form<RoleAssignForm>,
+) -> Flash<Redirect> {
+    let cookie_info = read_cookie(jar);
+    let admin_login = match &cookie_info {
+        Some(user) => Login::get(&conn, user.id).await.ok(),
+        None => None,
+    };
+    if admin_login
+        .as_ref()
+        .map(|user| user.is_admin == 1 && user.is_disabled == 0)
+        .unwrap_or(false)
+        == false
+    {
+        return Flash::error(
+            Redirect::to("/"),
+            "Only admin users can assign session roles.",
+        );
+    }
+
+    let paper = match Paper::get(&conn, id).await {
+        Ok(paper) => paper,
+        Err(_) => return Flash::error(Redirect::to("/paper/admin"), "Paper not found."),
+    };
+
+    if paper.is_selected == 0 {
+        return Flash::error(
+            Redirect::to("/paper/admin"),
+            "Roles can only be assigned to selected papers.",
+        );
+    }
+
+    let form = role_form.into_inner();
+    let assignments = vec![
+        ("reviewer_friendly".to_string(), form.reviewer_friendly),
+        (
+            "reviewer_adversarial".to_string(),
+            form.reviewer_adversarial,
+        ),
+        ("archaeologist".to_string(), form.archaeologist),
+        ("futurist".to_string(), form.futurist),
+    ];
+
+    let mut seen_users = std::collections::HashSet::new();
+    for (_, user_id) in &assignments {
+        if *user_id == paper.user_id {
+            return Flash::error(
+                Redirect::to("/paper/admin"),
+                "The proposer already has the Investigator role and cannot be assigned another role.",
+            );
+        }
+        if !seen_users.insert(*user_id) {
+            return Flash::error(
+                Redirect::to("/paper/admin"),
+                "Each role must be assigned to a different user.",
+            );
+        }
+
+        let login = match Login::get(&conn, *user_id).await {
+            Ok(login) => login,
+            Err(_) => {
+                return Flash::error(
+                    Redirect::to("/paper/admin"),
+                    "One of the selected users does not exist.",
+                )
+            }
+        };
+        if login.is_approved == 0 || login.is_disabled == 1 {
+            return Flash::error(
+                Redirect::to("/paper/admin"),
+                "Roles can only be assigned to approved and enabled users.",
+            );
+        }
+    }
+
+    match PaperRole::assign(&conn, id, assignments).await {
+        Ok(_) => Flash::success(
+            Redirect::to("/paper/admin"),
+            "Role assignments saved for selected paper.",
+        ),
+        Err(_) => Flash::error(
+            Redirect::to("/paper/admin"),
+            "Could not save role assignments.",
+        ),
+    }
+}
+
 #[put("/discuss/<id>", data = "<discuss_form>")]
 async fn paper_mark_discussed(
     jar: &CookieJar<'_>,
@@ -928,17 +1212,28 @@ async fn paper_mark_discussed(
 
     let discuss_form = discuss_form.into_inner();
     let discussed_date = discuss_form.discussed_date.trim().to_string();
-    let presenter_id = discuss_form.presenter_id;
+
+    let paper = match Paper::get(&conn, id).await {
+        Ok(paper) => paper,
+        Err(_) => return Flash::error(Redirect::to("/paper/admin"), "Paper not found."),
+    };
+
+    if paper.is_selected == 1 {
+        let role_rows = PaperRole::for_paper(&conn, id).await.unwrap_or_default();
+        if role_rows.len() < SESSION_ROLES.len() {
+            return Flash::error(
+                Redirect::to("/paper/admin"),
+                "Please assign all selected-paper roles before marking discussed.",
+            );
+        }
+    }
+
+    let presenter_id = discuss_form.presenter_id.or(Some(paper.user_id));
+
     if discussed_date.is_empty() {
         return Flash::error(
             Redirect::to("/paper/admin"),
             "Please provide the date when the paper was discussed.",
-        );
-    }
-    if presenter_id.is_none() {
-        return Flash::error(
-            Redirect::to("/paper/admin"),
-            "Please select the user who presented the paper.",
         );
     }
 
@@ -1128,6 +1423,7 @@ async fn paper_remove(jar: &CookieJar<'_>, conn: DbConn, id: i32) -> Flash<Redir
             let pdf_file = paper.pdf_file.clone();
             let thumbnail = paper.thumbnail.clone();
             let _ = Vote::remove_for_paper(&conn, id).await;
+            let _ = PaperRole::remove_for_paper(&conn, id).await;
             if let Err(e) = Paper::remove(&conn, id).await {
                 error_!("remove paper db error: {}", e);
                 return Flash::error(Redirect::to(redirect_target), "Could not remove paper.");
@@ -1421,8 +1717,10 @@ fn rocket() -> _ {
                 paper_vote_up,
                 paper_vote_down,
                 paper_ranking,
-                paper_discussed,
+                paper_schedule,
                 paper_admin_discussed,
+                paper_select,
+                paper_assign_roles,
                 paper_mark_discussed
             ],
         ) // Managing papers
