@@ -46,6 +46,7 @@ COPY --from=builder /app/target/release/reading-group-bot ./
 COPY static ./static
 COPY templates ./templates
 COPY migrations ./migrations
+COPY local ./local
 COPY Rocket.toml ./
 COPY docker-entrypoint.sh ./
 

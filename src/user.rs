@@ -94,23 +94,11 @@ pub async fn seed_default_user(conn: &DbConn) {
             error_!("Failed to load users before seeding default user: {}", e);
         }
         Ok(logins) => {
-            let existing_user = logins.into_iter().find(|login| {
-                login.name == default_user.name.as_str()
-                    || login.email == default_user.email.as_str()
-            });
-            if let Some(user) = existing_user {
-                if default_user.is_admin && user.is_admin == 0 {
-                    if let Some(user_id) = user.id {
-                        if let Err(e) = Login::promote_to_admin(conn, user_id).await {
-                            error_!("Failed to promote default user to admin: {}", e);
-                        } else {
-                            info_!(
-                                "Promoted default user to admin from {}",
-                                DEFAULT_USER_CONFIG_PATH
-                            );
-                        }
-                    }
-                }
+            if !logins.is_empty() {
+                info_!(
+                    "Users already exist. Skipping default user seed from {}",
+                    DEFAULT_USER_CONFIG_PATH
+                );
                 return;
             }
 

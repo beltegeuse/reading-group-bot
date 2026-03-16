@@ -39,10 +39,19 @@ docker run -d \
 ### Directories
 
 - `/app/data/db.sqlite` - SQLite database (persisted via volume)
+- `/app/local/default_user.json` - Optional bootstrap user config copied into the image
 - `/app/static/pdfs` - PDF files storage
 - `/app/static/thumbnails` - Thumbnail images storage
 - `/app/templates` - Tera templates
 - `/app/migrations` - Database migrations
+
+## Default User Bootstrap
+
+If `local/default_user.json` exists when you build the image, it is copied into `/app/local/default_user.json`.
+
+On container startup, the application uses this file only when the users table is empty. If the instance already has users in the database, the default user is not created or updated.
+
+Because `/app/data` is persisted as a volume, this bootstrap normally runs only on the first initialization of a fresh instance. To trigger it again, start with an empty database volume.
 
 ## Volumes
 
