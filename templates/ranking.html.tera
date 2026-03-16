@@ -1,62 +1,64 @@
 {% extends "base" %}
 
 {% block content %}
-  {% if flash %}
-  <div class="notification is-{{flash.0}}">
-    <button class="delete"></button>
-    {{ flash.1 }}
-  </div>
-  {% endif %}
 
-  <h1 class="title">Paper Ranking</h1>
-  <p class="subtitle">Current ranking based on Up votes.</p>
+{% if flash %}
+<div class="notification notification-{{ flash.0 }}">
+  <button class="notification-close" type="button">×</button>
+  {{ flash.1 }}
+</div>
+{% endif %}
 
-  {% if papers | length == 0 %}
-    <article class="message is-warning">
-      <div class="message-body">No papers are currently available.</div>
-    </article>
-  {% else %}
-    <div class="table-container">
-      <table class="table is-fullwidth is-striped is-hoverable">
-        <thead>
+<div class="page-header">
+  <h1 class="page-title">Paper <span class="accent">Ranking</span></h1>
+  <p class="page-subtitle">Sorted by up-votes from all members.</p>
+</div>
+
+{% if papers | length == 0 %}
+  <div class="empty-state">No papers are currently available.</div>
+{% else %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="td-rank">#</th>
+          <th>Paper</th>
+          <th>Proposed by</th>
+          <th>Votes</th>
+          <th>Added</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in papers %}
           <tr>
-            <th>#</th>
-            <th>Paper</th>
-            <th>Proposed by</th>
-            <th>Votes</th>
-            <th>Added</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in papers %}
-            <tr>
-              <td>{{ loop.index }}</td>
-              <td>
+            <td class="td-rank">{{ loop.index }}</td>
+            <td>
+              <div>
                 {% if item.paper.pdf_file %}
-                  <a href="/pdfs/{{item.paper.pdf_file}}" target="_blank"><strong>{{ item.paper.title }}</strong></a>
+                  <a href="/pdfs/{{ item.paper.pdf_file }}" target="_blank"><strong>{{ item.paper.title }}</strong></a>
                 {% elif item.paper.url %}
-                  <a href="{{item.paper.url}}" target="_blank"><strong>{{ item.paper.title }}</strong></a>
+                  <a href="{{ item.paper.url }}" target="_blank"><strong>{{ item.paper.title }}</strong></a>
                 {% else %}
                   <strong>{{ item.paper.title }}</strong>
                 {% endif %}
-                <div>
-                  {% if item.paper.venue %}
-                    <span class="tag">{{ item.paper.venue }}</span>
-                  {% endif %}
-                  {% if item.paper.publication_year %}
-                    <span class="tag is-info">{{ item.paper.publication_year }}</span>
-                  {% endif %}
-                </div>
-              </td>
-              <td>{{ item.username }}</td>
-              <td>
-                <span class="tag is-link is-light">{{ item.paper.vote_count }}</span>
-              </td>
-              <td>{{ item.paper.added_at }}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% endif %}
+              </div>
+              <div class="flex flex-wrap gap-xs mt-1">
+                {% if item.paper.venue %}
+                  <span class="tag tag-default">{{ item.paper.venue }}</span>
+                {% endif %}
+                {% if item.paper.publication_year %}
+                  <span class="tag tag-year">{{ item.paper.publication_year }}</span>
+                {% endif %}
+              </div>
+            </td>
+            <td class="text-muted text-sm">{{ item.username }}</td>
+            <td class="td-votes">{{ item.paper.vote_count }}</td>
+            <td class="font-mono text-xs text-muted">{{ item.paper.added_at }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+
 {% endblock content %}

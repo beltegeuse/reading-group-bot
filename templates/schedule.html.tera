@@ -1,89 +1,101 @@
 {% extends "base" %}
 
 {% block content %}
-  {% if flash %}
-  <div class="notification is-{{flash.0}}">
-    <button class="delete"></button>
-    {{ flash.1 }}
-  </div>
-  {% endif %}
 
-  <h1 class="title">Schedule</h1>
-  <p class="subtitle">Upcoming selected sessions and previously discussed papers with role assignments.</p>
+{% if flash %}
+<div class="notification notification-{{ flash.0 }}">
+  <button class="notification-close" type="button">×</button>
+  {{ flash.1 }}
+</div>
+{% endif %}
 
-  <h2 class="title is-4 mt-5">Upcoming Sessions</h2>
+<div class="page-header">
+  <h1 class="page-title">Reading <span class="accent">Schedule</span></h1>
+  <p class="page-subtitle">Upcoming sessions and previously discussed papers with role assignments.</p>
+</div>
+
+<div class="sessions-block">
+  <h2 class="section-title">Upcoming Sessions</h2>
+
   {% if selected_papers | length == 0 %}
-    <article class="message is-info">
-      <div class="message-body">No papers currently selected.</div>
-    </article>
+    <div class="empty-state">No papers currently selected for an upcoming session.</div>
   {% else %}
     {% for item in selected_papers %}
-      <div class="box mb-4">
-        <p class="mb-2">
+      <div class="session-card">
+        <div class="session-paper-title">
           {% if item.paper.pdf_file %}
-            <a href="/pdfs/{{item.paper.pdf_file}}" target="_blank"><strong>{{ item.paper.title }}</strong></a>
+            <a href="/pdfs/{{ item.paper.pdf_file }}" target="_blank">{{ item.paper.title }}</a>
           {% elif item.paper.url %}
-            <a href="{{item.paper.url}}" target="_blank"><strong>{{ item.paper.title }}</strong></a>
+            <a href="{{ item.paper.url }}" target="_blank">{{ item.paper.title }}</a>
           {% else %}
-            <strong>{{ item.paper.title }}</strong>
+            {{ item.paper.title }}
           {% endif %}
-        </p>
-        <p class="mb-2">
+        </div>
+        <div class="flex flex-wrap gap-xs">
           {% if item.paper.venue %}
-            <span class="tag">{{ item.paper.venue }}</span>
+            <span class="tag tag-default">{{ item.paper.venue }}</span>
           {% endif %}
           {% if item.paper.publication_year %}
-            <span class="tag is-info">{{ item.paper.publication_year }}</span>
+            <span class="tag tag-year">{{ item.paper.publication_year }}</span>
           {% endif %}
-          <span class="tag is-link is-light">Votes {{ item.paper.vote_count }}</span>
-          <span class="tag is-warning is-light">Selected</span>
-        </p>
-        <div class="content is-small">
-          <ul>
-            {% for role in item.roles %}
-              <li><strong>{{ role.role_label }}</strong>: {{ role.user_name }}</li>
-            {% endfor %}
-          </ul>
+          <span class="tag tag-accent"><i class="fa-solid fa-bookmark"></i> Selected</span>
+          <span class="tag tag-muted">{{ item.paper.vote_count }} votes</span>
         </div>
+        {% if item.roles | length > 0 %}
+          <div class="session-roles">
+            {% for role in item.roles %}
+              <span class="role-chip">
+                <span class="role-label">{{ role.role_label }}</span>
+                {{ role.user_name }}
+              </span>
+            {% endfor %}
+          </div>
+        {% endif %}
       </div>
     {% endfor %}
   {% endif %}
+</div>
 
-  <h2 class="title is-4 mt-5">Past Sessions</h2>
+<div class="sessions-block">
+  <h2 class="section-title">Past Sessions</h2>
+
   {% if discussed_papers | length == 0 %}
-    <article class="message is-warning">
-      <div class="message-body">No discussed papers yet.</div>
-    </article>
+    <div class="empty-state">No sessions have been recorded yet.</div>
   {% else %}
     {% for item in discussed_papers %}
-      <div class="box mb-4">
-        <p class="mb-2">
+      <div class="session-card">
+        <div class="session-paper-title">
           {% if item.paper.pdf_file %}
-            <a href="/pdfs/{{item.paper.pdf_file}}" target="_blank"><strong>{{ item.paper.title }}</strong></a>
+            <a href="/pdfs/{{ item.paper.pdf_file }}" target="_blank">{{ item.paper.title }}</a>
           {% elif item.paper.url %}
-            <a href="{{item.paper.url}}" target="_blank"><strong>{{ item.paper.title }}</strong></a>
+            <a href="{{ item.paper.url }}" target="_blank">{{ item.paper.title }}</a>
           {% else %}
-            <strong>{{ item.paper.title }}</strong>
+            {{ item.paper.title }}
           {% endif %}
-        </p>
-        <p class="mb-2">
+        </div>
+        <div class="flex flex-wrap gap-xs">
           {% if item.paper.venue %}
-            <span class="tag">{{ item.paper.venue }}</span>
+            <span class="tag tag-default">{{ item.paper.venue }}</span>
           {% endif %}
           {% if item.paper.publication_year %}
-            <span class="tag is-info">{{ item.paper.publication_year }}</span>
+            <span class="tag tag-year">{{ item.paper.publication_year }}</span>
           {% endif %}
-          <span class="tag is-success is-light">Discussed {{ item.paper.discussed_at }}</span>
-          <span class="tag is-link is-light">Votes {{ item.paper.vote_count }}</span>
-        </p>
-        <div class="content is-small">
-          <ul>
-            {% for role in item.roles %}
-              <li><strong>{{ role.role_label }}</strong>: {{ role.user_name }}</li>
-            {% endfor %}
-          </ul>
+          <span class="tag tag-green"><i class="fa-solid fa-check"></i> Discussed {{ item.paper.discussed_at }}</span>
+          <span class="tag tag-muted">{{ item.paper.vote_count }} votes</span>
         </div>
+        {% if item.roles | length > 0 %}
+          <div class="session-roles">
+            {% for role in item.roles %}
+              <span class="role-chip">
+                <span class="role-label">{{ role.role_label }}</span>
+                {{ role.user_name }}
+              </span>
+            {% endfor %}
+          </div>
+        {% endif %}
       </div>
     {% endfor %}
   {% endif %}
+</div>
+
 {% endblock content %}

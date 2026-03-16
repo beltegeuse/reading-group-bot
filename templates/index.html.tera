@@ -1,192 +1,148 @@
 {% extends "base" %}
-  
+
 {% block content %}
-  {% if flash %}
-  <div class="notification is-{{flash.0}}">
-    <button class="delete"></button>
-    {{ flash.1 }}
-  </div>
-  {% endif %}
 
-  <div class="content mb-5">
+{% if flash %}
+<div class="notification notification-{{ flash.0 }}">
+  <button class="notification-close" type="button">×</button>
+  {{ flash.1 }}
+</div>
+{% endif %}
+
+<div class="page-header">
+  <h1 class="page-title">Paper <span class="accent">Queue</span></h1>
+  <p class="page-subtitle">
     {% if cookie_info %}
-      <p>Please propose new papers and use Up if you are interested or Ignore if you are not.</p>
+      Propose new papers and vote to shape the reading schedule.
     {% else %}
-      <p>Please register and login to vote and propose new papers.</p>
+      Register and log in to vote and propose new papers.
     {% endif %}
-  </div>
+  </p>
+</div>
 
-  <div class="box mb-4">
-    <form action="/" method="get">
-      <div class="field has-addons">
-        <div class="control is-expanded">
-          <input class="input" type="text" name="q" value="{{ search_query }}" placeholder="Search papers by title, venue, or year">
-        </div>
-        <div class="control">
-          <button class="button is-link" type="submit">Search</button>
-        </div>
-        {% if search_query or only_not_voted %}
-        <div class="control">
-          <a class="button is-light" href="/">Clear</a>
-        </div>
+<div class="search-bar">
+  <form action="/" method="get" class="flex flex-wrap gap-sm items-center w-full">
+    <div class="search-wrap">
+      <i class="fa-solid fa-magnifying-glass search-icon"></i>
+      <input class="search-input" type="text" name="q" value="{{ search_query }}" placeholder="Search by title, venue, or year…">
+    </div>
+    <div class="search-actions">
+      <button class="btn btn-secondary btn-sm" type="submit">Search</button>
+      {% if search_query or only_not_voted %}
+        <a class="btn btn-ghost btn-sm" href="/">Clear</a>
+      {% endif %}
+    </div>
+    <label class="filter-check">
+      <input id="only-not-voted-toggle" type="checkbox" name="only_not_voted" value="1" {% if only_not_voted %}checked{% endif %}>
+      Not voted yet
+    </label>
+  </form>
+</div>
+
+<div id="dynamic-no-results" class="empty-state is-hidden mb-3">
+  No papers match the current filter.
+</div>
+
+{% if papers | length == 0 %}
+  <div class="empty-state">
+    No papers found{% if search_query %} for "{{ search_query }}"{% endif %}.
+  </div>
+{% endif %}
+
+<div class="papers-list">
+  {% for item in papers %}
+    <div class="paper-card" data-vote-state="{{ item.vote_state }}">
+
+      <div class="paper-thumb">
+        {% if item.paper.thumbnail %}
+          <img src="/thumbnails/{{ item.paper.thumbnail }}" alt="{{ item.paper.title }}">
+        {% else %}
+          <i class="fa-regular fa-file-pdf paper-thumb-icon"></i>
         {% endif %}
       </div>
-      <div class="field mt-2">
-        <label class="checkbox">
-          <input id="only-not-voted-toggle" type="checkbox" name="only_not_voted" value="1" {% if only_not_voted %}checked{% endif %}>
-          Only show papers not voted yet
-        </label>
-      </div>
-    </form>
-  </div>
 
-  <article id="dynamic-no-results" class="message is-warning is-hidden mb-4">
-    <div class="message-body">
-      No papers match the current filters.
-    </div>
-  </article>
-
-  {% if papers | length == 0 %}
-    <article class="message is-warning">
-      <div class="message-body">
-        No papers found{% if search_query %} for "{{ search_query }}"{% endif %}.
-      </div>
-    </article>
-  {% endif %}
-
-  {% for item in papers %}
-    <div class="box mb-4 paper-card" data-vote-state="{{ item.vote_state }}">
-      <div class="columns is-multiline">
-        <div class="column is-narrow">
-          {% if item.paper.thumbnail %}
-            <figure class="image is-200x280">
-              <img src="/thumbnails/{{item.paper.thumbnail}}" alt="{{item.paper.title}}" style="object-fit: cover; width: 100%; height: 100%;">
-            </figure>
-          {% else %}
-            <figure class="image is-200x280" style="display: flex; align-items: center; justify-content: center;">
-              <span class="icon is-large">
-                <i class="fas fa-4x fa-file-pdf"></i>
-              </span>
-            </figure>
+      <div class="paper-body">
+        <div class="paper-title-row">
+          <div class="paper-title">
+            {% if item.paper.pdf_file %}
+              <a href="/pdfs/{{ item.paper.pdf_file }}" target="_blank">{{ item.paper.title }}</a>
+            {% elif item.paper.url %}
+              <a href="{{ item.paper.url }}" target="_blank">{{ item.paper.title }}</a>
+            {% else %}
+              {{ item.paper.title }}
+            {% endif %}
+          </div>
+          {% if item.paper.pdf_file %}
+            <span class="pdf-badge"><i class="fa-solid fa-file-pdf"></i> PDF</span>
+            {% if item.paper.url %}
+              <a href="{{ item.paper.url }}" target="_blank" class="text-xs text-muted">Project page</a>
+            {% endif %}
           {% endif %}
         </div>
 
-        <div class="column">
-          <div class="content">
-            <p class="mb-2">
-              <span class="icon-text">
-                <span class="icon">
-                  <i class="fas fa-book"></i>
-                </span>
-                <span>
-                  {% if item.paper.pdf_file %}
-                    <a href="/pdfs/{{item.paper.pdf_file}}" target="_blank"><strong>{{ item.paper.title }}</strong></a>
-                    <span class="tag is-warning is-light ml-2">
-                      <span class="icon is-small">
-                        <i class="fas fa-file-pdf"></i>
-                      </span>
-                      <span>PDF</span>
-                    </span>
-                    {% if item.paper.url %}
-                      <a href="{{item.paper.url}}" target="_blank" class="ml-2">Project page</a>
-                    {% endif %}
-                  {% elif item.paper.url %}
-                    <a href="{{item.paper.url}}" target="_blank"><strong>{{ item.paper.title }}</strong></a>
-                  {% else %}
-                    <strong>{{ item.paper.title }}</strong>
-                  {% endif %}
-                </span>
-              </span>
-            </p>
-            <p class="mb-2">
-              <span class="tags has-addons">
-                {% if item.paper.venue %}
-                  <span class="tag">{{ item.paper.venue }}</span>
-                {% endif %}
-                {% if item.paper.publication_year %}
-                  <span class="tag is-info">{{ item.paper.publication_year }}</span>
-                {% endif %}
-                <span class="tag is-light">Added {{ item.paper.added_at }}</span>
-                <span class="tag is-link is-light">Votes {{ item.paper.vote_count }}</span>
-              </span>
-            </p>
-            <p class="mb-3">
-              <span class="tag is-grey is-light">
-                <span class="icon is-small">
-                  <i class="fas fa-user"></i>
-                </span>
-                <span>Proposed by {{ item.username }}</span>
-              </span>
-            </p>
+        <div class="paper-meta">
+          {% if item.paper.venue %}
+            <span class="tag tag-default">{{ item.paper.venue }}</span>
+          {% endif %}
+          {% if item.paper.publication_year %}
+            <span class="tag tag-year">{{ item.paper.publication_year }}</span>
+          {% endif %}
+          <span class="paper-date">Added {{ item.paper.added_at }}</span>
+        </div>
 
-            {% if cookie_info %}
-              <div class="field is-grouped">
-                <div class="control">
-                  <form action="/paper/up/{{item.paper.id}}" method="post" style="display: inline;">
-                    <input type="hidden" name="_method" value="put" />
-                    <button class="button is-success is-small {% if item.vote_state != 1 %}is-outlined{% endif %}" type="submit" {% if item.vote_state == 1 %}disabled{% endif %}>
-                      Up (Interested)
-                    </button>
-                  </form>
-                </div>
+        <div class="paper-proposer">
+          Proposed by <strong>{{ item.username }}</strong>
+        </div>
 
-                <div class="control">
-                  <form action="/paper/down/{{item.paper.id}}" method="post" style="display: inline;">
-                    <input type="hidden" name="_method" value="put" />
-                    <button class="button is-danger is-small {% if item.vote_state == -1 %}is-outlined{% else %}is-light{% endif %}" type="submit" {% if item.vote_state == -1 %}disabled{% endif %}>
-                      Ignore
-                    </button>
-                  </form>
-                </div>
+        {% if cookie_info %}
+          <div class="paper-actions">
+            <form action="/paper/up/{{ item.paper.id }}" method="post" style="display:inline">
+              <input type="hidden" name="_method" value="put">
+              <button class="vote-pill vote-up {% if item.vote_state == 1 %}active{% endif %}"
+                      type="submit" {% if item.vote_state == 1 %}disabled{% endif %}>
+                <i class="fa-solid fa-thumbs-up"></i> Interested
+              </button>
+            </form>
 
-                <div class="control">
-                  {% if item.vote_state == 1 %}
-                    <span class="tag is-success is-light">You marked this paper as interested</span>
-                  {% elif item.vote_state == -1 %}
-                    <span class="tag is-danger is-light">You marked this paper as ignored</span>
-                  {% else %}
-                    <span class="tag is-light">You have not voted yet</span>
-                  {% endif %}
-                </div>
+            <form action="/paper/down/{{ item.paper.id }}" method="post" style="display:inline">
+              <input type="hidden" name="_method" value="put">
+              <button class="vote-pill vote-down {% if item.vote_state == -1 %}active{% endif %}"
+                      type="submit" {% if item.vote_state == -1 %}disabled{% endif %}>
+                <i class="fa-solid fa-ban"></i> Ignore
+              </button>
+            </form>
 
-                {% if item.paper.user_id == cookie_info.id or cookie_info.is_admin %}
-                  <div class="control">
-                    <a class="button is-small is-info is-outlined" href="/paper/edit/{{item.paper.id}}">
-                      <span class="icon is-small">
-                        <i class="fas fa-pen"></i>
-                      </span>
-                      <span>Edit</span>
-                    </a>
-                  </div>
-                  <div class="control">
-                    <form action="/paper/remove/{{item.paper.id}}" method="post" style="display: inline;">
-                      <input type="hidden" name="_method" value="put" />
-                      <button class="button is-small is-danger is-outlined" type="submit">
-                        <span class="icon is-small">
-                          <i class="fas fa-trash-alt"></i>
-                        </span>
-                        <span>Remove</span>
-                      </button>
-                    </form>
-                  </div>
-                {% endif %}
-              </div>
+            {% if item.vote_state == 1 %}
+              <span class="vote-status is-up"><i class="fa-solid fa-check"></i> Interested</span>
+            {% elif item.vote_state == -1 %}
+              <span class="vote-status is-down"><i class="fa-solid fa-minus"></i> Ignored</span>
             {% else %}
-              <div class="field">
-                <div class="control">
-                  <div class="button is-static is-small">
-                    <span class="icon is-small">
-                      <i class="fas fa-thumbs-up"></i>
-                    </span>
-                    <span>{{ item.paper.vote_count }}</span>
-                  </div>
-                </div>
-              </div>
+              <span class="vote-status">Not voted</span>
+            {% endif %}
+
+            {% if item.paper.user_id == cookie_info.id or cookie_info.is_admin %}
+              <a class="btn btn-teal btn-sm" href="/paper/edit/{{ item.paper.id }}">
+                <i class="fa-solid fa-pen"></i> Edit
+              </a>
+              <form action="/paper/remove/{{ item.paper.id }}" method="post" style="display:inline">
+                <input type="hidden" name="_method" value="put">
+                <button class="btn btn-red btn-sm" type="submit">
+                  <i class="fa-solid fa-trash"></i> Remove
+                </button>
+              </form>
             {% endif %}
           </div>
-        </div>
+        {% else %}
+          <div class="paper-actions">
+            <span class="vote-count-badge">
+              <i class="fa-solid fa-thumbs-up"></i> {{ item.paper.vote_count }}
+            </span>
+          </div>
+        {% endif %}
       </div>
+
     </div>
   {% endfor %}
+</div>
 
 {% endblock content %}

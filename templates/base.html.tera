@@ -2,102 +2,75 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Paper reading list</title>
-  <meta name="description" content="paper reading group up-vote written in Rocket.">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css">
-  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.4.0/css/all.css" integrity="sha384-IYN7pAFISHrRvKFEQj8ZK8kLqeagNor3SUWowAWsAP+ILlwCdrqI4lAGcTmXmL5x" crossorigin="anonymous">
+  <title>Reading Group{% block title %}{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-    <nav class="navbar" role="navigation" aria-label="main navigation">
-      <div class="navbar-brand">
-        <a class="navbar-item" href="/">
-          <span class="icon">
-            <i class="fas fa-glasses"></i>
-          </span>
-          <span><strong>Reading Group</strong></span>
-        </a>
 
-        <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false" data-target="navbarMenu">
-          <span aria-hidden="true"></span>
-          <span aria-hidden="true"></span>
-          <span aria-hidden="true"></span>
-        </a>
-      </div>
+<nav class="navbar">
+  <div class="navbar-inner">
+    <a href="/" class="navbar-brand">Reading Group</a>
 
-      <div id="navbarMenu" class="navbar-menu">
-        <div class="navbar-start">
-          <a class="navbar-item" href="/">
-            <span class="icon">
-              <i class="fas fa-list"></i>
-            </span>
-            <span>Papers</span>
-          </a>
-
-          <a class="navbar-item" href="/paper/ranking">
-            <span class="icon">
-              <i class="fas fa-trophy"></i>
-            </span>
-            <span>Ranking</span>
-          </a>
-
-          <a class="navbar-item" href="/paper/schedule">
-            <span class="icon">
-              <i class="fas fa-calendar"></i>
-            </span>
-            <span>Schedule</span>
-          </a>
-
-          {% if cookie_info and cookie_info.is_admin %}
-          <a class="navbar-item" href="/paper/admin">
-            <span class="icon">
-              <i class="fas fa-user-shield"></i>
-            </span>
-            <span>Admin</span>
-          </a>
-          {% endif %}
-
-          <a class="navbar-item" href="/paper/add">
-            <span class="icon">
-              <i class="fas fa-plus-circle"></i>
-            </span>
-            <span>Add Paper</span>
-          </a>
-        </div>
-
-        <div class="navbar-end">
-          {% if cookie_info %}
-            <div class="navbar-item">
-              <div class="buttons">
-                <a class="button is-light" href="/user/logout">
-                  <span>Logout {{cookie_info.name}}</span>
-                </a>
-              </div>
-            </div>
-          {% else %}
-            <div class="navbar-item">
-              <div class="buttons">
-                <a class="button is-primary" href="/user/register">
-                  <strong>Sign up</strong>
-                </a>
-                <a class="button is-light" href="/user/login">
-                  Log in
-                </a>
-              </div>
-            </div>
-          {% endif %}
-        </div>
-      </div>
-    </nav>
-
-    <div class="section">
-      <div class="container">
-        {% block content %}{% endblock content %}
-      </div>
+    <div class="navbar-links">
+      <a href="/">Papers</a>
+      <a href="/paper/ranking">Ranking</a>
+      <a href="/paper/schedule">Schedule</a>
+      {% if cookie_info and cookie_info.is_admin %}
+        <a href="/paper/admin">Admin</a>
+      {% endif %}
+      <a href="/paper/add">Add Paper</a>
     </div>
 
-    <script src="/js/gh.js"></script>
+    <div class="navbar-actions">
+      {% if cookie_info %}
+        <span class="navbar-user-name">{{ cookie_info.name }}</span>
+        <a href="/user/logout" class="btn btn-secondary btn-sm">Sign out</a>
+      {% else %}
+        <a href="/user/register" class="btn btn-primary btn-sm">Sign up</a>
+        <a href="/user/login" class="btn btn-secondary btn-sm">Log in</a>
+      {% endif %}
+    </div>
+
+    <button class="navbar-burger-btn" id="navbar-burger-btn" aria-label="Toggle menu">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+  </div>
+
+  <div class="navbar-mobile-menu" id="navbar-mobile-menu">
+    <div class="navbar-links">
+      <a href="/">Papers</a>
+      <a href="/paper/ranking">Ranking</a>
+      <a href="/paper/schedule">Schedule</a>
+      {% if cookie_info and cookie_info.is_admin %}
+        <a href="/paper/admin">Admin</a>
+      {% endif %}
+      <a href="/paper/add">Add Paper</a>
+    </div>
+    <div class="navbar-actions">
+      {% if cookie_info %}
+        <span class="navbar-user-name">{{ cookie_info.name }}</span>
+        <a href="/user/logout" class="btn btn-secondary btn-sm">Sign out</a>
+      {% else %}
+        <a href="/user/register" class="btn btn-primary btn-sm">Sign up</a>
+        <a href="/user/login" class="btn btn-secondary btn-sm">Log in</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<div class="page-content">
+  <div class="container">
+    {% block content %}{% endblock content %}
+  </div>
+</div>
+
+<script src="/js/gh.js"></script>
 </body>
 </html>

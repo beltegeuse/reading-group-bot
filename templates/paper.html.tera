@@ -1,142 +1,121 @@
 {% extends "base" %}
-  
+
 {% block content %}
-  {% if flash %}
-  <div class="notification is-{{flash.0}}">
-    <button class="delete"></button>
-    {{ flash.1 }}
+
+{% if flash %}
+<div class="notification notification-{{ flash.0 }}">
+  <button class="notification-close" type="button">×</button>
+  {{ flash.1 }}
+</div>
+{% endif %}
+
+{% if can_submit %}
+
+  <div class="page-header">
+    <h1 class="page-title">Add a <span class="accent">Paper</span></h1>
+    <p class="page-subtitle">Propose a new paper for the reading group queue.</p>
   </div>
-  {% endif %}
 
-  {% if can_submit %}
+  <div style="max-width: 640px;">
+    <form action="/paper/add" method="post" enctype="multipart/form-data">
 
-    <div class="box">
-      <h2 class="title">Add a new paper to our pile!</h2>
-      
-      <form action="/paper/add" method="post" enctype="multipart/form-data">
-        <div class="field">
-          <label class="label">Paper title *</label>
-          <div class="control has-icons-left">
-            <input class="input" type="text" placeholder="Paper title..."
-              name="title" id="title" value="" autofocus required />
-            <span class="icon is-left">
-              <i class="fas fa-heading"></i>
-            </span>
-          </div>
+      <div class="form-group">
+        <label class="form-label" for="title">Paper Title *</label>
+        <div class="form-with-icon">
+          <i class="fa-solid fa-heading form-icon"></i>
+          <input class="form-input" type="text" placeholder="Full paper title…"
+            name="title" id="title" autofocus required>
         </div>
-
-        <div class="field">
-          <label class="label" for="link">Project link (optional)</label>
-          <div class="control has-icons-left">
-            <input class="input" type="url" placeholder="https://example.com"
-              name="link" id="link" value="" />
-            <span class="icon is-left">
-              <i class="fas fa-link"></i>
-            </span>
-          </div>
-        </div>
-
-        <div class="field">
-          <label class="label" for="pdf">Paper PDF *</label>
-          <div class="control">
-            <div class="file has-name">
-              <label class="file-label">
-                <input class="file-input" type="file" accept="application/pdf,.pdf"
-                  name="pdf" id="pdf" required />
-                <span class="file-cta">
-                  <span class="file-icon">
-                    <i class="fas fa-upload"></i>
-                  </span>
-                  <span class="file-label">
-                    Choose a file…
-                  </span>
-                </span>
-                <span class="file-name">
-                  No file selected
-                </span>
-              </label>
-            </div>
-          </div>
-          <p class="help">PDF upload is mandatory. Maximum PDF size: 200 MiB.</p>
-        </div>
-
-        <div class="field">
-          <label class="label" for="year">Publication year *</label>
-          <div class="control">
-            <input class="input" type="number" min="1900" max="2100" placeholder="2024"
-              name="year" id="year" value="" required />
-          </div>
-        </div>
-
-        <div class="field">
-          <label class="label" for="venue">Venue *</label>
-          <div class="control">
-            <div class="select is-fullwidth">
-              <select name="venue" id="venue" required>
-                <option value="" disabled selected>Select venue...</option>
-                <optgroup label="Conferences">
-                  <option value="SIGGRAPH / SIGGRAPH Asia">SIGGRAPH / SIGGRAPH Asia</option>
-                  <option value="Eurographics (EG)">Eurographics (EG)</option>
-                  <option value="Pacific Graphics (PG)">Pacific Graphics (PG)</option>
-                  <option value="Symposium on Geometry Processing (SGP)">Symposium on Geometry Processing (SGP)</option>
-                  <option value="Symposium on Rendering (EGSR)">Symposium on Rendering (EGSR)</option>
-                  <option value="High Performance Graphics (HPG)">High Performance Graphics (HPG)</option>
-                  <option value="IEEE VIS (Visualization)">IEEE VIS (Visualization)</option>
-                  <option value="IEEE VR">IEEE VR</option>
-                  <option value="CVPR, ICCV, ECCV (computer vision / graphics overlap)">CVPR, ICCV, ECCV (computer vision / graphics overlap)</option>
-                  <option value="3DV">3DV</option>
-                </optgroup>
-                <optgroup label="Journals">
-                  <option value="ACM Transactions on Graphics (TOG)">ACM Transactions on Graphics (TOG)</option>
-                  <option value="IEEE Transactions on Visualization and Computer Graphics (TVCG)">IEEE Transactions on Visualization and Computer Graphics (TVCG)</option>
-                  <option value="Computer Graphics Forum (CGF)">Computer Graphics Forum (CGF)</option>
-                  <option value="Computers & Graphics (C&G)">Computers &amp; Graphics (C&amp;G)</option>
-                  <option value="The Visual Computer (TVC)">The Visual Computer (TVC)</option>
-                  <option value="IEEE Computer Graphics and Applications (CG&amp;A)">IEEE Computer Graphics and Applications (CG&amp;A)</option>
-                </optgroup>
-                <optgroup label="Preprint">
-                  <option value="arXiv (cs.GR for graphics, cs.CV for vision)">arXiv (cs.GR for graphics, cs.CV for vision)</option>
-                </optgroup>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div class="field">
-          <label class="label" for="venue_other">If Other, specify venue</label>
-          <div class="control">
-            <input class="input" type="text" placeholder="Custom venue"
-              name="venue_other" id="venue_other" value="" />
-          </div>
-        </div>
-
-        <div class="field is-grouped">
-          <div class="control">
-            <button class="button is-primary" type="submit">
-              <span class="icon">
-                <i class="fas fa-plus"></i>
-              </span>
-              <span>Add Paper</span>
-            </button>
-          </div>
-        </div>
-      </form>
-    </div>
-  {% else %}
-    <article class="message is-info">
-      <div class="message-body">
-        <p class="title is-5">Paper Upload Access Required</p>
-        {% if access_message %}
-          <p>{{ access_message }}</p>
-        {% endif %}
-        {% if not cookie_info %}
-          <p>Please <a href="/user/login">log in</a> or <a href="/user/register">register</a> to continue.</p>
-        {% else %}
-          <p>Once approved, you can upload PDFs and propose new papers.</p>
-        {% endif %}
       </div>
-    </article>
-  {% endif %}
+
+      <div class="form-group">
+        <label class="form-label" for="link">Project Link <span class="text-muted" style="font-size:0.75em; text-transform: none; letter-spacing: 0;">(optional)</span></label>
+        <div class="form-with-icon">
+          <i class="fa-solid fa-link form-icon"></i>
+          <input class="form-input" type="url" placeholder="https://example.com"
+            name="link" id="link">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="pdf">Paper PDF *</label>
+        <label class="file-upload-area">
+          <i class="fa-solid fa-upload"></i>
+          <span>Choose a PDF file…</span>
+          <span class="file-name-display">No file selected</span>
+          <input class="file-input" type="file" accept="application/pdf,.pdf"
+            name="pdf" id="pdf" required>
+        </label>
+        <p class="form-hint">PDF required. Maximum size: 200 MiB.</p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="year">Publication Year *</label>
+        <input class="form-input" type="number" min="1900" max="2100" placeholder="2024"
+          name="year" id="year" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="venue">Venue *</label>
+        <select class="form-select" name="venue" id="venue" required>
+          <option value="" disabled selected>Select venue…</option>
+          <optgroup label="Conferences">
+            <option value="SIGGRAPH / SIGGRAPH Asia">SIGGRAPH / SIGGRAPH Asia</option>
+            <option value="Eurographics (EG)">Eurographics (EG)</option>
+            <option value="Pacific Graphics (PG)">Pacific Graphics (PG)</option>
+            <option value="Symposium on Geometry Processing (SGP)">Symposium on Geometry Processing (SGP)</option>
+            <option value="Symposium on Rendering (EGSR)">Symposium on Rendering (EGSR)</option>
+            <option value="High Performance Graphics (HPG)">High Performance Graphics (HPG)</option>
+            <option value="IEEE VIS (Visualization)">IEEE VIS (Visualization)</option>
+            <option value="IEEE VR">IEEE VR</option>
+            <option value="CVPR, ICCV, ECCV (computer vision / graphics overlap)">CVPR, ICCV, ECCV (computer vision / graphics overlap)</option>
+            <option value="3DV">3DV</option>
+          </optgroup>
+          <optgroup label="Journals">
+            <option value="ACM Transactions on Graphics (TOG)">ACM Transactions on Graphics (TOG)</option>
+            <option value="IEEE Transactions on Visualization and Computer Graphics (TVCG)">IEEE Transactions on Visualization and Computer Graphics (TVCG)</option>
+            <option value="Computer Graphics Forum (CGF)">Computer Graphics Forum (CGF)</option>
+            <option value="Computers & Graphics (C&G)">Computers &amp; Graphics (C&amp;G)</option>
+            <option value="The Visual Computer (TVC)">The Visual Computer (TVC)</option>
+            <option value="IEEE Computer Graphics and Applications (CG&amp;A)">IEEE Computer Graphics and Applications (CG&amp;A)</option>
+          </optgroup>
+          <optgroup label="Preprint">
+            <option value="arXiv (cs.GR for graphics, cs.CV for vision)">arXiv (cs.GR for graphics, cs.CV for vision)</option>
+          </optgroup>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="venue_other">Custom Venue <span class="text-muted" style="font-size:0.75em; text-transform: none; letter-spacing: 0;">(if Other)</span></label>
+        <input class="form-input" type="text" placeholder="Venue name…"
+          name="venue_other" id="venue_other">
+      </div>
+
+      <div class="flex gap-sm mt-3">
+        <button class="btn btn-primary" type="submit">
+          <i class="fa-solid fa-plus"></i> Add Paper
+        </button>
+        <a class="btn btn-secondary" href="/">Cancel</a>
+      </div>
+
+    </form>
+  </div>
+
+{% else %}
+  <div class="notification notification-info" style="max-width: 560px;">
+    <div>
+      <strong>Paper Upload Access Required</strong>
+      {% if access_message %}
+        <p class="mt-1">{{ access_message }}</p>
+      {% endif %}
+      {% if not cookie_info %}
+        <p class="mt-1">Please <a href="/user/login">log in</a> or <a href="/user/register">register</a> to continue.</p>
+      {% else %}
+        <p class="mt-1">Once approved, you can upload PDFs and propose new papers.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
 
 {% endblock content %}

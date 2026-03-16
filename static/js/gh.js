@@ -1,68 +1,58 @@
-// Bulma navbar burger menu toggle
-document.addEventListener('DOMContentLoaded', () => {
-  const $navbarBurgers = Array.prototype.slice.call(document.querySelectorAll('.navbar-burger'), 0);
+'use strict';
 
-  $navbarBurgers.forEach( el => {
-    el.addEventListener('click', () => {
-      const target = el.dataset.target;
-      const $target = document.getElementById(target);
-      el.classList.toggle('is-active');
-      $target.classList.toggle('is-active');
+document.addEventListener('DOMContentLoaded', () => {
+
+  // ── Navbar mobile menu ─────────────────────────────────────
+  const burger     = document.getElementById('navbar-burger-btn');
+  const mobileMenu = document.getElementById('navbar-mobile-menu');
+  if (burger && mobileMenu) {
+    burger.addEventListener('click', () => {
+      mobileMenu.classList.toggle('is-active');
     });
-  });
-});
-
-// Close notification when delete button is clicked
-document.addEventListener('DOMContentLoaded', () => {
-  (document.querySelectorAll('.notification .delete') || []).forEach(($delete) => {
-    const $notification = $delete.parentNode;
-
-    $delete.addEventListener('click', () => {
-      $notification.parentNode.removeChild($notification);
-    });
-  });
-});
-
-// Update file input display name
-document.addEventListener('DOMContentLoaded', () => {
-  const fileInputs = document.querySelectorAll('.file-input');
-  
-  fileInputs.forEach(fileInput => {
-    fileInput.addEventListener('change', (event) => {
-      const fileName = event.target.files[0]?.name || 'No file selected';
-      const fileNameElement = fileInput.closest('.file-label').querySelector('.file-name');
-      if (fileNameElement) {
-        fileNameElement.textContent = fileName;
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+      if (!burger.contains(e.target) && !mobileMenu.contains(e.target)) {
+        mobileMenu.classList.remove('is-active');
       }
     });
-  });
-});
-
-// Dynamic filter for "only not voted" on index page
-document.addEventListener('DOMContentLoaded', () => {
-  const notVotedToggle = document.getElementById('only-not-voted-toggle');
-  const paperCards = Array.from(document.querySelectorAll('.paper-card'));
-  const dynamicNoResults = document.getElementById('dynamic-no-results');
-
-  if (!notVotedToggle || paperCards.length === 0) {
-    return;
   }
 
-  const applyNotVotedFilter = () => {
-    const onlyNotVoted = notVotedToggle.checked;
-
-    paperCards.forEach((card) => {
-      const voteState = Number(card.dataset.voteState || '0');
-      const visible = !onlyNotVoted || voteState === 0;
-      card.style.display = visible ? '' : 'none';
+  // ── Dismiss notifications ──────────────────────────────────
+  document.querySelectorAll('.notification-close').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const notification = btn.closest('.notification');
+      if (notification) notification.remove();
     });
+  });
 
-    if (dynamicNoResults) {
-      const visibleCardsCount = paperCards.filter((card) => card.style.display !== 'none').length;
-      dynamicNoResults.classList.toggle('is-hidden', visibleCardsCount > 0);
-    }
-  };
+  // ── File input display name ────────────────────────────────
+  document.querySelectorAll('.file-input').forEach(input => {
+    input.addEventListener('change', e => {
+      const name    = e.target.files[0]?.name || 'No file selected';
+      const display = input.closest('.file-upload-area')?.querySelector('.file-name-display');
+      if (display) display.textContent = name;
+    });
+  });
 
-  notVotedToggle.addEventListener('change', applyNotVotedFilter);
-  applyNotVotedFilter();
+  // ── "Only not voted" filter (index page) ──────────────────
+  const toggle    = document.getElementById('only-not-voted-toggle');
+  const cards     = Array.from(document.querySelectorAll('.paper-card'));
+  const noResults = document.getElementById('dynamic-no-results');
+
+  if (toggle && cards.length) {
+    const apply = () => {
+      const onlyUnvoted = toggle.checked;
+      cards.forEach(card => {
+        const state = Number(card.dataset.voteState || 0);
+        card.style.display = (!onlyUnvoted || state === 0) ? '' : 'none';
+      });
+      if (noResults) {
+        const visible = cards.filter(c => c.style.display !== 'none').length;
+        noResults.classList.toggle('is-hidden', visible > 0);
+      }
+    };
+    toggle.addEventListener('change', apply);
+    apply();
+  }
+
 });

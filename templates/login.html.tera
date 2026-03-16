@@ -1,42 +1,41 @@
 {% extends "base" %}
-  
+
 {% block content %}
-<div class="box" style="max-width: 400px; margin: 0 auto;">
-  <h2 class="title">Log In</h2>
 
-  <form action="login" method="post">
-    <div class="field">
-      <label class="label">Username</label>
-      <div class="control has-icons-left">
-        <input class="input" type="text" name="name" id="name" value="" autofocus required />
-        <span class="icon is-left">
-          <i class="fas fa-user"></i>
-        </span>
+<div style="max-width: 400px; margin: 2rem auto;">
+  <div class="auth-card">
+    <div class="auth-header">
+      <span class="auth-logo-mark">◈</span>
+      <div class="auth-title">Sign In</div>
+      <div class="auth-subtitle">Reading Group Portal</div>
+    </div>
+
+    <form action="login" method="post">
+      <div class="form-group">
+        <label class="form-label" for="name">Username</label>
+        <div class="form-with-icon">
+          <i class="fa-solid fa-user form-icon"></i>
+          <input class="form-input" type="text" name="name" id="name" autofocus required>
+        </div>
       </div>
-    </div>
 
-    <div class="field">
-      <label class="label">Password</label>
-      <div class="control has-icons-left">
-        <input class="input" type="password" name="password" id="password" value="" required />
-        <span class="icon is-left">
-          <i class="fas fa-lock"></i>
-        </span>
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <div class="form-with-icon">
+          <i class="fa-solid fa-lock form-icon"></i>
+          <input class="form-input" type="password" name="password" id="password" required>
+        </div>
       </div>
-    </div>
 
-    <div class="field is-grouped">
-      <div class="control">
-        <button class="button is-primary" type="submit">Log In</button>
-      </div>
-    </div>
+      <button class="btn btn-primary w-full btn-lg" type="submit" style="margin-top: 0.5rem;">
+        Sign In
+      </button>
+    </form>
 
-    <div class="content">
-      <p>
-        Don't have an account? <a href="/user/register">Register here</a>
-      </p>
+    <div class="auth-footer">
+      Don't have an account? <a href="/user/register">Register here</a>
     </div>
-  </form>
+  </div>
 </div>
 
 {% endblock content %}

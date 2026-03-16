@@ -1,74 +1,64 @@
 {% extends "base" %}
-  
+
 {% block content %}
-<div class="box" style="max-width: 400px; margin: 0 auto;">
-  <h2 class="title">Register</h2>
 
-  <article class="message is-info">
-    <div class="message-body">
-      Accounts must be approved by an admin before uploading PDFs and proposing papers.
-      After registering, please contact <strong>adrien.gruson@etsmtl.ca</strong>.
-    </div>
-  </article>
-
-  <form action="register" method="post">
-    <div class="field">
-      <label class="label">Username</label>
-      <div class="control has-icons-left">
-        <input class="input" type="text" name="name" id="name" value="" autofocus required />
-        <span class="icon is-left">
-          <i class="fas fa-user"></i>
-        </span>
-      </div>
+<div style="max-width: 400px; margin: 2rem auto;">
+  <div class="auth-card">
+    <div class="auth-header">
+      <span class="auth-logo-mark">◈</span>
+      <div class="auth-title">Register</div>
+      <div class="auth-subtitle">Create your account</div>
     </div>
 
-    <div class="field">
-      <label class="label">Password</label>
-      <div class="control has-icons-left">
-        <input class="input" type="password" name="password" id="password" value="" required />
-        <span class="icon is-left">
-          <i class="fas fa-lock"></i>
-        </span>
-      </div>
+    <div class="auth-info">
+      Accounts require admin approval before uploading PDFs and proposing papers.
+      After registering, contact <strong>adrien.gruson@etsmtl.ca</strong>.
     </div>
 
-    <div class="field">
-      <label class="label">Email</label>
-      <div class="control has-icons-left">
-        <input class="input" type="email" placeholder="test@example.com"
-          name="email" id="email" value="" required />
-        <span class="icon is-left">
-          <i class="fas fa-envelope"></i>
-        </span>
-      </div>
-    </div>
-
-    <div class="field">
-      <label class="label">Role</label>
-      <div class="control">
-        <div class="select is-fullwidth">
-          <select name="role" id="role" required>
-            <option value="master_student">Master student</option>
-            <option value="phd_student">PhD student</option>
-            <option value="prof">Prof</option>
-            <option value="other" selected>Other</option>
-          </select>
+    <form action="register" method="post">
+      <div class="form-group">
+        <label class="form-label" for="name">Username</label>
+        <div class="form-with-icon">
+          <i class="fa-solid fa-user form-icon"></i>
+          <input class="form-input" type="text" name="name" id="name" autofocus required>
         </div>
       </div>
-    </div>
 
-    <div class="field is-grouped">
-      <div class="control">
-        <button class="button is-primary" type="submit">Register</button>
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <div class="form-with-icon">
+          <i class="fa-solid fa-lock form-icon"></i>
+          <input class="form-input" type="password" name="password" id="password" required>
+        </div>
       </div>
-    </div>
 
-    <div class="content">
-      <p>
-        Already have an account? <a href="/user/login">Log in here</a>
-      </p>
+      <div class="form-group">
+        <label class="form-label" for="email">Email</label>
+        <div class="form-with-icon">
+          <i class="fa-solid fa-envelope form-icon"></i>
+          <input class="form-input" type="email" placeholder="you@example.com" name="email" id="email" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="role">Role</label>
+        <select class="form-select" name="role" id="role" required>
+          <option value="master_student">Master student</option>
+          <option value="phd_student">PhD student</option>
+          <option value="prof">Prof</option>
+          <option value="other" selected>Other</option>
+        </select>
+      </div>
+
+      <button class="btn btn-primary w-full btn-lg" type="submit" style="margin-top: 0.5rem;">
+        Create Account
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      Already have an account? <a href="/user/login">Log in here</a>
     </div>
-  </form>
+  </div>
 </div>
 
 {% endblock content %}
