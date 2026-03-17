@@ -1,0 +1,96 @@
+{% extends "base" %}
+
+{% block content %}
+
+{% if flash %}
+<div class="notification notification-{{ flash.0 }}">
+  <button class="notification-close" type="button">×</button>
+  {{ flash.1 }}
+</div>
+{% endif %}
+
+<div style="max-width: 760px; margin: 2rem auto;">
+  <div class="page-header" style="margin-bottom: 1.5rem;">
+    <h1 class="page-title">Your <span class="accent">Account</span></h1>
+    <p class="page-subtitle">Review your profile details and update your password.</p>
+  </div>
+
+  <div class="auth-card" style="max-width: none; margin-bottom: 1.5rem;">
+    <div class="auth-header" style="text-align: left; margin-bottom: 1.5rem;">
+      <div class="auth-title">Account Summary</div>
+      <div class="auth-subtitle">Current account details and submission access</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem 1.5rem;">
+      <div>
+        <div class="role-label">Name</div>
+        <div style="margin-top: 0.35rem; color: var(--text);">{{ name }}</div>
+      </div>
+      <div>
+        <div class="role-label">Email</div>
+        <div style="margin-top: 0.35rem; color: var(--text);">{{ email }}</div>
+      </div>
+      <div>
+        <div class="role-label">Role</div>
+        <div style="margin-top: 0.35rem; color: var(--text);">{{ role }}</div>
+      </div>
+      <div>
+        <div class="role-label">Paper Uploads</div>
+        <div style="margin-top: 0.35rem; color: var(--text);">
+          {% if can_submit %}
+            Enabled
+          {% else %}
+            Pending approval
+          {% endif %}
+        </div>
+      </div>
+      <div style="grid-column: 1 / -1;">
+        <div class="role-label">Last Connected</div>
+        <div style="margin-top: 0.35rem; color: var(--text);">
+          {% if last_connected %}
+            {{ last_connected }}
+          {% else %}
+            No previous login recorded.
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="auth-card" style="max-width: none;">
+    <div class="auth-header" style="text-align: left; margin-bottom: 1.5rem;">
+      <div class="auth-title">Change Password</div>
+      <div class="auth-subtitle">Use your current password to set a new one.</div>
+    </div>
+
+    <form action="/user/account/password" method="post">
+      <div class="form-group">
+        <label class="form-label" for="current_password">Current password</label>
+        <div class="form-with-icon">
+          <i class="fa-solid fa-key form-icon"></i>
+          <input class="form-input" type="password" name="current_password" id="current_password" autocomplete="current-password" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="new_password">New password</label>
+        <div class="form-with-icon">
+          <i class="fa-solid fa-lock form-icon"></i>
+          <input class="form-input" type="password" name="new_password" id="new_password" autocomplete="new-password" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="confirm_password">Confirm new password</label>
+        <div class="form-with-icon">
+          <i class="fa-solid fa-shield-halved form-icon"></i>
+          <input class="form-input" type="password" name="confirm_password" id="confirm_password" autocomplete="new-password" required>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-lg" type="submit">Update Password</button>
+    </form>
+  </div>
+</div>
+
+{% endblock content %}

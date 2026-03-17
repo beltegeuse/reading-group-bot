@@ -109,6 +109,20 @@ impl Login {
         .await
     }
 
+    pub async fn update_password_hash(
+        conn: &DbConn,
+        user_id: i32,
+        password_hash: String,
+    ) -> QueryResult<usize> {
+        conn.run(move |c| {
+            diesel::update(all_logins)
+                .filter(logins::id.eq(user_id))
+                .set(logins::password_hash.eq(password_hash))
+                .execute(c)
+        })
+        .await
+    }
+
     pub async fn update_last_connected(
         conn: &DbConn,
         user_id: i32,

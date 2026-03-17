@@ -142,6 +142,18 @@ struct PaperEditContext {
 
 #[derive(Debug, Serialize)]
 #[serde(crate = "rocket::serde")]
+struct AccountContext {
+    flash: Option<(String, String)>,
+    cookie_info: Option<CookieInfo>,
+    name: String,
+    email: String,
+    role: String,
+    can_submit: bool,
+    last_connected: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(crate = "rocket::serde")]
 struct RoleAssignmentInfo {
     role_name: String,
     role_label: String,
@@ -1523,6 +1535,14 @@ struct LoginForm {
     name: String,
     password: String,
 }
+
+#[derive(Debug, FromForm)]
+struct ChangePasswordForm {
+    current_password: String,
+    new_password: String,
+    confirm_password: String,
+}
+
 #[get("/login")]
 fn user_login() -> Template {
     let context = ContextNull {};
@@ -1586,6 +1606,138 @@ async fn user_login_post(
     }
 
     Flash::error(Redirect::to("/"), "User not found!")
+}
+
+#[get("/account")]
+async fn user_account(
+    jar: &CookieJar<'_>,
+    flash: Option<FlashMessage<'_>>,
+    conn: DbConn,
+) -> Result<Template, Flash<Redirect>> {
+    let cookie_info = match read_cookie(jar) {
+        Some(cookie_info) => cookie_info,
+        None => {
+            return Err(Flash::error(
+                Redirect::to("/"),
+                "Please log in before accessing your account.",
+            ))
+        }
+    };
+
+    let flash = flash.map(FlashMessage::into_inner);
+    let login = match Login::get(&conn, cookie_info.id).await {
+        Ok(login) => login,
+        Err(_) => {
+            return Err(Flash::error(
+                Redirect::to("/"),
+                "Could not validate your account. Please log in again.",
+            ))
+        }
+    };
+
+    if login.is_disabled == 1 {
+        return Err(Flash::error(
+            Redirect::to("/"),
+            format!(
+                "Your account is disabled. Please contact {}.",
+                ADMIN_CONTACT_EMAIL
+            ),
+        ));
+    }
+
+    let context = AccountContext {
+        flash,
+        cookie_info: Some(cookie_info),
+        name: login.name,
+        email: login.email,
+        role: role_label(&login.role).to_string(),
+        can_submit: login.is_approved == 1,
+        last_connected: login.last_connected,
+    };
+
+    Ok(Template::render("account", &context))
+}
+
+#[post("/account/password", data = "<change_password_form>")]
+async fn user_change_password(
+    jar: &CookieJar<'_>,
+    conn: DbConn,
+    change_password_form: Form<ChangePasswordForm>,
+) -> Flash<Redirect> {
+    let cookie_info = match read_cookie(jar) {
+        Some(cookie_info) => cookie_info,
+        None => {
+            return Flash::error(
+                Redirect::to("/"),
+                "Please log in before changing your password.",
+            )
+        }
+    };
+
+    let login = match Login::get(&conn, cookie_info.id).await {
+        Ok(login) => login,
+        Err(_) => {
+            return Flash::error(
+                Redirect::to("/"),
+                "Could not validate your account. Please log in again.",
+            )
+        }
+    };
+
+    if login.is_disabled == 1 {
+        return Flash::error(
+            Redirect::to("/"),
+            format!(
+                "Your account is disabled. Please contact {}.",
+                ADMIN_CONTACT_EMAIL
+            ),
+        );
+    }
+
+    let change_password = change_password_form.into_inner();
+    if change_password.current_password.is_empty()
+        || change_password.new_password.is_empty()
+        || change_password.confirm_password.is_empty()
+    {
+        return Flash::error(
+            Redirect::to("/user/account"),
+            "All password fields are required.",
+        );
+    }
+
+    let current_password_hash = hash_password(change_password.current_password);
+    if current_password_hash != login.password_hash {
+        return Flash::error(
+            Redirect::to("/user/account"),
+            "Current password is incorrect.",
+        );
+    }
+
+    if change_password.new_password != change_password.confirm_password {
+        return Flash::error(
+            Redirect::to("/user/account"),
+            "New password and confirmation do not match.",
+        );
+    }
+
+    let new_password_hash = hash_password(change_password.new_password);
+    if new_password_hash == login.password_hash {
+        return Flash::error(
+            Redirect::to("/user/account"),
+            "New password must be different from your current password.",
+        );
+    }
+
+    match Login::update_password_hash(&conn, cookie_info.id, new_password_hash).await {
+        Ok(updated_rows) if updated_rows > 0 => Flash::success(
+            Redirect::to("/user/account"),
+            "Password updated successfully.",
+        ),
+        _ => Flash::error(
+            Redirect::to("/user/account"),
+            "Could not update your password.",
+        ),
+    }
 }
 
 #[get("/logout")]
@@ -1729,6 +1881,8 @@ fn rocket() -> _ {
             routes![
                 user_login,
                 user_login_post,
+                user_account,
+                user_change_password,
                 user_register,
                 user_register_post,
                 user_approve,

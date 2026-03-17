@@ -29,6 +29,7 @@
     <div class="navbar-actions">
       {% if cookie_info %}
         <span class="navbar-user-name">{{ cookie_info.name }}</span>
+        <a href="/user/account" class="btn btn-ghost btn-sm">Account</a>
         <a href="/user/logout" class="btn btn-secondary btn-sm">Sign out</a>
       {% else %}
         <a href="/user/register" class="btn btn-primary btn-sm">Sign up</a>
@@ -56,6 +57,7 @@
     <div class="navbar-actions">
       {% if cookie_info %}
         <span class="navbar-user-name">{{ cookie_info.name }}</span>
+        <a href="/user/account" class="btn btn-ghost btn-sm">Account</a>
         <a href="/user/logout" class="btn btn-secondary btn-sm">Sign out</a>
       {% else %}
         <a href="/user/register" class="btn btn-primary btn-sm">Sign up</a>
