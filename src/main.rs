@@ -1290,6 +1290,48 @@ async fn user_approve(jar: &CookieJar<'_>, conn: DbConn, id: i32) -> Flash<Redir
     }
 }
 
+#[put("/promote/<id>")]
+async fn user_promote_to_admin(jar: &CookieJar<'_>, conn: DbConn, id: i32) -> Flash<Redirect> {
+    let cookie_info = read_cookie(jar);
+    let admin_login = match &cookie_info {
+        Some(user) => Login::get(&conn, user.id).await.ok(),
+        None => None,
+    };
+    if admin_login
+        .as_ref()
+        .map(|user| user.is_admin == 1 && user.is_disabled == 0)
+        .unwrap_or(false)
+        == false
+    {
+        return Flash::error(
+            Redirect::to("/"),
+            "Only admin users can promote accounts to admin.",
+        );
+    }
+
+    let target = match Login::get(&conn, id).await {
+        Ok(login) => login,
+        Err(_) => {
+            return Flash::error(Redirect::to("/paper/admin"), "User not found.");
+        }
+    };
+
+    if target.is_admin == 1 {
+        return Flash::success(Redirect::to("/paper/admin"), "User is already an admin.");
+    }
+
+    match Login::promote_to_admin(&conn, id).await {
+        Ok(updated_rows) if updated_rows > 0 => Flash::success(
+            Redirect::to("/paper/admin"),
+            "User promoted to admin. They may need to sign out and sign back in to see the Admin link.",
+        ),
+        _ => Flash::error(
+            Redirect::to("/paper/admin"),
+            "Could not promote user to admin.",
+        ),
+    }
+}
+
 #[put("/disable/<id>", data = "<disable_form>")]
 async fn user_set_disabled(
     jar: &CookieJar<'_>,
@@ -1886,6 +1928,7 @@ fn rocket() -> _ {
                 user_register,
                 user_register_post,
                 user_approve,
+                user_promote_to_admin,
                 user_set_disabled,
                 user_set_role,
                 user_logout

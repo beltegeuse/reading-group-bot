@@ -68,12 +68,7 @@ impl Login {
         conn.run(move |c| {
             diesel::update(all_logins)
                 .filter(logins::id.eq(user_id))
-                .set((
-                    logins::is_admin.eq(1),
-                    logins::is_approved.eq(1),
-                    logins::is_disabled.eq(0),
-                    logins::role.eq("prof"),
-                ))
+                .set(logins::is_admin.eq(1))
                 .execute(c)
         })
         .await

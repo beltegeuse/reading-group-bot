@@ -109,11 +109,7 @@ pub async fn seed_default_user(conn: &DbConn) {
                 name: default_user.name,
                 email: default_user.email,
                 password: default_user.password,
-                role: if default_user.is_admin {
-                    "prof".to_string()
-                } else {
-                    normalize_role(&default_user.role)
-                },
+                role: normalize_role(&default_user.role),
             };
             if let Err(e) = Login::insert(register, conn).await {
                 error_!(
@@ -132,7 +128,20 @@ pub async fn seed_default_user(conn: &DbConn) {
                             });
                             if let Some(user) = inserted {
                                 if let Some(user_id) = user.id {
-                                    let _ = Login::promote_to_admin(conn, user_id).await;
+                                    if let Err(e) = Login::promote_to_admin(conn, user_id).await {
+                                        error_!(
+                                            "Failed to promote default user to admin from {}: {}",
+                                            DEFAULT_USER_CONFIG_PATH,
+                                            e
+                                        );
+                                    }
+                                    if let Err(e) = Login::approve(conn, user_id).await {
+                                        error_!(
+                                            "Failed to approve default admin user from {}: {}",
+                                            DEFAULT_USER_CONFIG_PATH,
+                                            e
+                                        );
+                                    }
                                 }
                             }
                         }

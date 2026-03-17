@@ -73,6 +73,12 @@
               </td>
               <td>
                 <div class="flex gap-xs">
+                  {% if not user.is_admin %}
+                    <form action="/user/promote/{{ user.id }}" method="post" style="display:inline">
+                      <input type="hidden" name="_method" value="put">
+                      <button class="btn btn-teal btn-sm" type="submit">Make Admin</button>
+                    </form>
+                  {% endif %}
                   {% if not user.is_approved %}
                     <form action="/user/approve/{{ user.id }}" method="post" style="display:inline">
                       <input type="hidden" name="_method" value="put">
